@@ -267,6 +267,7 @@ let step = 0;
 const TOTAL_STEPS = 9;
 
 function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstElementChild;}
+function NA(v){ return (v===""||v==null) ? "N/A" : v; }
 
 /* ---------- step builders ---------- */
 function buildAbout(){
@@ -695,9 +696,12 @@ function buildResults(){
   const strengthMailto = `mailto:${JOAO_EMAIL}?${ljmuEmail?`cc=${encodeURIComponent(ljmuEmail)}&`:""}subject=${subject}&body=${encodeURIComponent(strengthText)}`;
   const ttCC = [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",");
   const ttMailto = `mailto:${LUKE_EMAIL}?cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
+  const owaBase = "https://outlook.office.com/mail/deeplink/compose";
+  const strengthOWA = `${owaBase}?to=${encodeURIComponent(JOAO_EMAIL)}${ljmuEmail?`&cc=${encodeURIComponent(ljmuEmail)}`:""}&subject=${subject}&body=${encodeURIComponent(strengthText)}`;
+  const ttOWA = `${owaBase}?to=${encodeURIComponent(LUKE_EMAIL)}&cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
   const esc0 = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
-  const tableVals = [who, S.age||"", S.height||"", S.mass||"", r.csm.score, r.lv.score, r.fr.score, S.psqi.bed||"", S.psqi.wake||"", S.psqi.hrs||"", r.caffeine.mg+" mg", r.psqi.global, S.athleticLevel||"", S.bench1rm||"", S.squat1rm||"", S.sleep.years||""];
+  const tableVals = [who, NA(S.age), NA(S.height), NA(S.mass), r.csm.score, r.lv.score, r.fr.score, NA(S.psqi.bed), NA(S.psqi.wake), NA(S.psqi.hrs), r.caffeine.mg+" mg", r.psqi.global, NA(S.athleticLevel), NA(S.bench1rm), NA(S.squat1rm), NA(S.sleep.years)];
   const tableHtml = `<table style="border-collapse:collapse;width:100%;font-size:11.5px">
     <tr>${tableCols.map(c=>`<th style="border:1px solid #999;padding:5px 7px;text-align:left;white-space:nowrap">${esc0(c)}</th>`).join("")}</tr>
     <tr>${tableVals.map(v=>`<td style="border:1px solid #999;padding:5px 7px;white-space:nowrap">${esc0(v)}</td>`).join("")}</tr>
@@ -707,9 +711,11 @@ function buildResults(){
   const copyCard = el(`<div class="card">
     <h2>Send your results</h2>
     <div class="hint">Tap the button for the study you’re taking part in — it opens your default mail app with everything already filled in, including the data table below. Just hit send.</div>
-    <a href="${strengthMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#c0392b;border-color:#c0392b;color:#fff;margin-bottom:18px">I am taking part in Strength</a>
+    <a href="${strengthMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#c0392b;border-color:#c0392b;color:#fff">I am taking part in Strength</a>
+    <a href="${strengthOWA}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 18px">Didn’t work? Send through Outlook Web</a>
 
-    <a href="${ttMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#2f7a52;border-color:#2f7a52;color:#fff;margin-bottom:14px">I am taking part in Time Trial</a>
+    <a href="${ttMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#2f7a52;border-color:#2f7a52;color:#fff">I am taking part in Time Trial</a>
+    <a href="${ttOWA}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 14px">Didn’t work? Send through Outlook Web</a>
 
     <div class="hint" style="margin:4px 0 10px">Pick the study you’re taking part in — it opens your default mail app with everything already filled in, including a cc to ${esc0(ljmuEmail||"your LJMU email")}, ready to send. If nothing opens, copy the table or text below instead and paste it into a new email to <strong style="user-select:all">${JOAO_EMAIL}</strong> (Strength) or <strong style="user-select:all">${LUKE_EMAIL}</strong> (Time Trial, cc ${JOAO_EMAIL}${ljmuEmail?" and "+esc0(ljmuEmail):""}).</div>
     <div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px" id="dataTableWrap"></div>
@@ -756,20 +762,20 @@ function buildSummaryText(who, r, greet){
   const cols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS"];
   const vals = [
     who,
-    S.age||"",
-    S.height||"",
-    S.mass||"",
+    NA(S.age),
+    NA(S.height),
+    NA(S.mass),
     r.csm.score,
     r.lv.score,
     r.fr.score,
-    S.psqi.bed||"",
-    S.psqi.wake||"",
-    S.psqi.hrs||"",
+    NA(S.psqi.bed),
+    NA(S.psqi.wake),
+    NA(S.psqi.hrs),
     r.caffeine.mg+" mg",
     r.psqi.global,
-    S.athleticLevel||"",
-    S.bench1rm||"",
-    S.squat1rm||"",
+    NA(S.athleticLevel),
+    NA(S.bench1rm),
+    NA(S.squat1rm),
   ];
   const lines = [
     `Hi ${greet||"Joao"},`,
