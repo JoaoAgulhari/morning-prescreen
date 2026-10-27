@@ -245,7 +245,7 @@ function saveDraft(){
 }
 const DEFAULT_STATE = {
   testMode:false,
-  first:"", last:"", ljmuUsername:"", mass:"", height:"", bench1rm:"", squat1rm:"", athleticLevel:"", age:"", sex:"", gender:"",
+  first:"", last:"", ljmuEmail:"", mass:"", height:"", bench1rm:"", squat1rm:"", athleticLevel:"", age:"", sex:"", gender:"",
   csm:{}, lv:{}, caff:{servings:{}, other:"", }, sleep:{wdBed:"",wdWake:"",weBed:"",weWake:"",train:"",years:"",freq:"",duration:"",preferredTime:""},
   lifestyle:{shiftWork:"",smoking:"",alcohol:"",sleepDisorder:"",tzTravel:"",napFreq:"",injury:""},
   psqi:{bed:"",lat:"",wake:"",hrs:"",d5:{},d5other:"",qual:"",med:"",q8:"",q9:""}
@@ -278,9 +278,9 @@ function buildAbout(){
       <div><label class="ql">Last name</label><input type="text" id="last"></div>
     </div>
     <div class="field">
-      <label class="ql">LJMU username</label>
-      <input type="text" id="ljmuUsername" placeholder="e.g. J.Bloggs" autocapitalize="none" autocorrect="off">
-      <div style="color:var(--sub);font-size:12.5px;margin-top:6px">Your results email will be cc’d to <span id="ljmuEmailPreview">you@ljmu.ac.uk</span>.</div>
+      <label class="ql">LJMU email</label>
+      <input type="email" id="ljmuEmail" placeholder="e.g. J.Bloggs@ljmu.ac.uk" autocapitalize="none" autocorrect="off">
+      <div style="color:var(--sub);font-size:12.5px;margin-top:6px">Your results email will be cc’d to this address.</div>
     </div>
     <div class="field row2">
       <div><label class="ql">Age</label><input type="number" min="0" step="1" id="age"></div>
@@ -305,15 +305,13 @@ function buildAbout(){
     </div>
   </div>`);
   c.querySelector("#first").value=S.first; c.querySelector("#last").value=S.last; c.querySelector("#mass").value=S.mass;
-  c.querySelector("#ljmuUsername").value=S.ljmuUsername;
+  c.querySelector("#ljmuEmail").value=S.ljmuEmail;
   c.querySelector("#bench1rm").value=S.bench1rm; c.querySelector("#squat1rm").value=S.squat1rm;
   c.querySelector("#age").value=S.age; c.querySelector("#sex").value=S.sex; c.querySelector("#gender").value=S.gender;
   c.querySelector("#height").value=S.height;
-  const updateLjmuPreview=()=>{ c.querySelector("#ljmuEmailPreview").textContent = (S.ljmuUsername.trim()||"you")+"@ljmu.ac.uk"; };
-  updateLjmuPreview();
   c.querySelector("#first").oninput=e=>{ S.first=e.target.value; afterAnswer(); };
   c.querySelector("#last").oninput=e=>{ S.last=e.target.value; afterAnswer(); };
-  c.querySelector("#ljmuUsername").oninput=e=>{ S.ljmuUsername=e.target.value; updateLjmuPreview(); afterAnswer(); };
+  c.querySelector("#ljmuEmail").oninput=e=>{ S.ljmuEmail=e.target.value; afterAnswer(); };
   c.querySelector("#age").oninput=e=>{ S.age=e.target.value; afterAnswer(); };
   c.querySelector("#sex").oninput=e=>{ S.sex=e.target.value; afterAnswer(); };
   c.querySelector("#gender").oninput=e=>{ S.gender=e.target.value; afterAnswer(); };
@@ -693,7 +691,7 @@ function buildResults(){
   const strengthText = buildSummaryText(who, r, "Joao");
   const ttText = buildSummaryText(who, r, "Luke");
   const subject = encodeURIComponent("[Prescreening] "+who);
-  const ljmuEmail = S.ljmuUsername.trim() ? `${S.ljmuUsername.trim()}@ljmu.ac.uk` : "";
+  const ljmuEmail = S.ljmuEmail.trim();
   const strengthMailto = `mailto:${JOAO_EMAIL}?${ljmuEmail?`cc=${encodeURIComponent(ljmuEmail)}&`:""}subject=${subject}&body=${encodeURIComponent(strengthText)}`;
   const ttCC = [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",");
   const ttMailto = `mailto:${LUKE_EMAIL}?cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
@@ -804,7 +802,7 @@ const STEP_NAMES = ["About you","Athletic level","Chronotype","Flexibility & vig
 const STEP_BUILDERS = [buildAbout, buildAthleticLevel, buildCSM, buildLV, buildCaffeine, buildLifestyle, buildSleepWake, buildPSQI, buildResults];
 
 function stepValid(){
-  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuUsername.trim()!=="" && S.age!=="" && S.sex!=="" && S.gender!=="" && S.height!=="" && S.mass!==""; // 1RM stays optional
+  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuEmail.trim()!=="" && S.age!=="" && S.sex!=="" && S.gender!=="" && S.height!=="" && S.mass!==""; // 1RM stays optional
   if(step===1) return true;
   if(step===2) return CSM.every((_,i)=>S.csm[i]!=null);
   if(step===3) return LV.every((_,i)=>S.lv[i]!=null);
