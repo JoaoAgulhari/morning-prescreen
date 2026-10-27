@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Morning Research Prescreen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+  Design plan
+  Layout: a single dawn-to-dusk gradient rail tracks progress through the steps;
+  each step is a quiet card so 100+ questions never feel like a wall of text.
+  Color: --paper neutral ground, --ink text, --dawn (amber) + --dusk (indigo) mark
+         morning/evening ends of the chronotype spectrum, --line for hairlines, --good/--warn status.
+  Type:  Fraunces (display, section titles) / Inter (body, all questions+UI) / shared tabular figures for scores.
+*/
+:root{
+  --paper:#faf7f2; --ink:#201c2b; --sub:#6b6678; --line:#e3ddd3;
+  --card:#ffffff; --dawn:#c8822c; --dusk:#453b8c; --good:#2f7a52; --warn:#b5482f;
+  --ring: 200 140 60;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#17151f; --ink:#ece8f3; --sub:#a39cb5; --line:#332e42;
+    --card:#201d2b; --dawn:#e0a456; --dusk:#8f85e0; --good:#5fbf86; --warn:#e08063;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#17151f; --ink:#ece8f3; --sub:#a39cb5; --line:#332e42;
+  --card:#201d2b; --dawn:#e0a456; --dusk:#8f85e0; --good:#5fbf86; --warn:#e08063;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Inter",system-ui,-apple-system,Segoe UI,sans-serif;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom,0px));
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Fraunces",Georgia,serif; text-wrap:balance; margin:0}
+.wrap{max-width:640px;margin:0 auto;padding-top:28px}
+.masthead{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+.masthead .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--sub);font-weight:600}
+.masthead h1{font-size:26px;font-weight:600;line-height:1.15}
+.masthead p{color:var(--sub);font-size:14.5px;margin:2px 0 0;line-height:1.5}
+
+.progress-rail{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:18px 0 26px;position:relative}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--dawn),var(--dusk));transition:width .35s ease}
+.step-label{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:7px;font-weight:600;letter-spacing:.02em}
+.step-label span.cur{color:var(--ink)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 22px 26px;margin-bottom:16px}
+.card h2{font-size:19px;font-weight:600;margin-bottom:4px}
+.card .hint{color:var(--sub);font-size:13.5px;line-height:1.55;margin:4px 0 18px}
+
+.field{margin-bottom:20px}
+.field:last-child{margin-bottom:0}
+.field label.ql{display:block;font-size:14.5px;line-height:1.45;margin-bottom:10px;font-weight:500}
+.field .num{display:inline-block;color:var(--sub);font-weight:600;margin-right:6px}
+
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{
+  display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;cursor:pointer;font-size:14px;transition:border-color .15s, background .15s;
+  min-width:0;
+}
+.opt:hover{border-color:color-mix(in srgb, var(--dawn) 55%, var(--line))}
+.opt input{accent-color:var(--dawn);width:16px;height:16px;flex:none}
+.opt span{min-width:0}
+.opt.checked{border-color:var(--dawn);background:color-mix(in srgb, var(--dawn) 12%, var(--card))}
+
+.likert{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.likert .lopt{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--line);border-radius:10px;padding:8px 2px;cursor:pointer;font-size:10.5px;text-align:center;color:var(--sub);line-height:1.25}
+.likert .lopt input{accent-color:var(--dusk);width:16px;height:16px}
+.likert .lopt.checked{border-color:var(--dusk);background:color-mix(in srgb, var(--dusk) 12%, var(--card));color:var(--ink)}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row2{grid-template-columns:1fr}}
+input[type=text],input[type=number],input[type=time],textarea,select{
+  width:100%;min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:9px;
+  padding:10px 11px;font-size:14.5px;color:var(--ink);font-family:inherit;
+}
+.row2 > div{min-width:0}
+textarea{resize:vertical;min-height:64px}
+.srcrow{display:grid;grid-template-columns:1fr 84px 70px;gap:10px;align-items:center;margin-bottom:10px}
+.srcrow .sname{font-size:14px}
+.srcrow .smg{font-size:11.5px;color:var(--sub)}
+@media (max-width:460px){.srcrow{grid-template-columns:1fr 70px 60px}}
+
+.navrow{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+button{font-family:inherit;font-size:14.5px;font-weight:600;border-radius:10px;padding:11px 18px;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn-ghost:hover{border-color:var(--sub)}
+
+.err{color:var(--warn);font-size:12.5px;margin-top:10px}
+
+/* results */
+.scorecard{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px}
+.scorecard .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.scorecard .name{font-weight:600;font-size:15px}
+.scorecard .val{font-family:"Inter",sans-serif;font-variant-numeric:tabular-nums;font-size:22px;font-weight:700}
+.scorecard .cat{display:inline-block;margin-top:4px;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:99px}
+.cat-morning{background:color-mix(in srgb, var(--dawn) 22%, transparent);color:var(--dawn)}
+.cat-evening{background:color-mix(in srgb, var(--dusk) 22%, transparent);color:var(--dusk)}
+.cat-mid{background:color-mix(in srgb, var(--sub) 22%, transparent);color:var(--sub)}
+.cat-good{background:color-mix(in srgb, var(--good) 20%, transparent);color:var(--good)}
+.cat-warn{background:color-mix(in srgb, var(--warn) 20%, transparent);color:var(--warn)}
+.scorecard .meta{color:var(--sub);font-size:12.5px;margin-top:6px;line-height:1.5}
+
+.copybox{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:14px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;max-height:260px;overflow:auto;margin-bottom:12px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:99px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div class="eyebrow">LJMU · Morning Neuromuscular Performance Programme</div>
+    <h1>Prescreening questionnaire</h1>
+    <p>A few short sections on you, your training, chronotype, sleep and caffeine habits. Takes about 10–15 minutes. Each section must be answered in full before you can move on. Your results are scored automatically at the end.</p>
+  </div>
+
+  <div class="progress-rail"><div class="progress-fill" id="pfill" style="width:0%"></div></div>
+  <div class="step-label"><span class="cur" id="steplabel">Step 1 of 7</span><span id="stepname">About you</span></div>
+
+  <div id="steps"></div>
+
+  <div class="navrow">
+    <button class="btn-ghost" id="backBtn">Back</button>
+    <button class="btn-primary" id="nextBtn">Continue</button>
+  </div>
+  <div class="err" id="incompleteNote" style="text-align:right" hidden>Answer every question on this page to continue.</div>
+  <footer>Answers are scored on this device and shown to you to copy or send on &mdash; nothing is submitted automatically.</footer>
+</div>
+<div class="toast" id="toast">Copied</div>
+
+
+<script>
+/* ---------- data ---------- */
+const CSM = [
+ {p:"If you were entirely free to plan your day, and went only by your own “feeling best” rhythm, what time would you get up?",
+  opts:[["5:00–6:30am",5],["6:30–7:45am",4],["7:45–9:45am",3],["9:45–11:00am",2],["11:00am–12:00pm",1]]},
+ {p:"Going only by your own “feeling best” rhythm, what time would you go to bed?",
+  opts:[["8:00–9:00pm",5],["9:00–10:15pm",4],["10:15pm–12:30am",3],["12:30–1:45am",2],["1:45–3:00am",1]]},
+ {p:"Assuming normal circumstances, how easy do you find getting up in the morning?",
+  opts:[["Not at all easy",1],["Slightly easy",2],["Fairly easy",3],["Very easy",4]]},
+ {p:"How alert do you feel during the first half hour after waking in the morning?",
+  opts:[["Not at all alert",1],["Slightly alert",2],["Fairly alert",3],["Very alert",4]]},
+ {p:"During the first half hour after waking, how tired do you feel?",
+  opts:[["Very tired",1],["Fairly tired",2],["Fairly refreshed",3],["Very refreshed",4]]},
+ {p:"A friend suggests exercising with you for an hour, twice a week, best done at 7:00–8:00am. Going only by your own feeling-best rhythm, how do you think you’d perform?",
+  opts:[["Would be in good form",4],["Would be in reasonable form",3],["Would find it difficult",2],["Would find it very difficult",1]]},
+ {p:"At what time in the evening do you feel tired, and as a result, in need of sleep?",
+  opts:[["8:00–9:00pm",5],["9:00–10:15pm",4],["10:15pm–12:30am",3],["12:30–1:45am",2],["1:45–3:00am",1]]},
+ {p:"You want to be at peak performance for a mentally exhausting two-hour test, and are entirely free to plan your day. Which time would you choose?",
+  opts:[["8:00–10:00am",4],["11:00am–1:00pm",3],["3:00–5:00pm",2],["7:00–9:00pm",1]]},
+ {p:"People talk about “morning” and “evening” types — which do you consider yourself?",
+  opts:[["Definitely a morning type",4],["More a morning type than an evening type",3],["More an evening type than a morning type",2],["Definitely an evening type",1]]},
+ {p:"If entirely free to arrange your time, with a full 8-hour working day ahead, when would you prefer to rise?",
+  opts:[["Before 6:30am",4],["6:30–7:30am",3],["7:30–8:30am",2],["8:30am or later",1]]},
+ {p:"If you always had to rise at 6:00am, what do you think it would be like?",
+  opts:[["Very difficult and unpleasant",1],["Rather difficult and unpleasant",2],["A little unpleasant, but no great problem",3],["Easy and not unpleasant",4]]},
+ {p:"How long does it usually take you to “recover your senses” in the morning after rising?",
+  opts:[["0–10 minutes",4],["11–20 minutes",3],["21–40 minutes",2],["More than 40 minutes",1]]},
+ {p:"To what extent are you a morning-active or evening-active individual?",
+  opts:[["Pronounced morning type",4],["Moderate morning type",3],["Moderate evening type",2],["Pronounced evening type",1]]},
+];
+
+const LV = [
+ ["Do you tend to need more sleep than other people?","LV"],
+ ["If you are feeling drowsy, can you easily overcome it if you have something to do?","FR"],
+ ["Do you find it fairly easy to get to sleep whenever you want to?","FR"],
+ ["Can you miss out on a night’s sleep without too much difficulty?","FR"],
+ ["Do you find it difficult to “wake up” properly if woken at an unusual time?","LV"],
+ ["If you had to do a job in the middle of the night, could you do it almost as easily as at a normal time of day?","FR"],
+ ["If you went to bed very late, could you still sleep in the next morning almost as easily as usual?","FR"],
+ ["If you go to bed very late, do you need to sleep in the following morning?","LV"],
+ ["Can you easily keep alert in boring situations?","FR"],
+ ["Are you fairly unaware of what time it is?","LV"],
+ ["If you are tired, do you have difficulty keeping awake even though you need to?","LV"],
+ ["Do you enjoy working at unusual times of day or night?","FR"],
+ ["Do you feel sleepy for a while after waking in the morning?","LV"],
+ ["Do you get up later than normal when you are on holiday?","LV"],
+ ["If you have a lot to do, can you stay up late to finish it off without feeling too tired?","FR"],
+ ["Does the time of day have a large effect on your mood and abilities?","LV"],
+ ["Do you find it as easy to work late at night as earlier in the day?","FR"],
+ ["If you have to get up very early one morning, do you tend to feel tired all day?","LV"],
+ ["Do you “nod off” if you are listening to, or watching, something boring?","LV"],
+ ["Can you easily go to sleep earlier than normal to “catch up” on lost sleep?","FR"],
+ ["Do you have no strong preference as to when you sleep?","FR"],
+ ["Can you manage with only a few hours’ sleep each night for several days in a row without too much difficulty?","FR"],
+ ["Do you find it fairly difficult to overcome tiredness, even in a challenging situation?","FR"],
+ ["Would you be just as happy to do something in the middle of the night as during the day?","FR"],
+ ["Do you rely on an alarm clock, or someone else, to wake you in the morning?","LV"],
+ ["Do you get to sleep fairly quickly when you have gone to bed earlier than normal?","FR"],
+ ["Do you go to parties, or have evenings out with friends, even if you have to get up early the next morning?","FR"],
+ ["Do you need a cup of coffee or tea to wake you up properly after sleep?","LV"],
+ ["Are there particular times of day when you’d avoid doing certain jobs if you could?","LV"],
+ ["Would you rather wait half an hour or so after waking before eating a large breakfast?","LV"],
+].map(([p,tag])=>({p,tag}));
+const LIKERT_LABELS=["Almost never","Seldom","Sometimes","Usually","Almost always"];
+
+const CAFF_SOURCES=[
+ ["Filter / brewed coffee (cup, 237ml)",95],
+ ["Espresso (single shot)",63],
+ ["Instant coffee (cup)",60],
+ ["Tea — black or green (cup)",47],
+ ["Energy drink (250ml can)",80],
+ ["Pre-workout supplement (1 scoop)",200],
+ ["Cola / soft drink (330ml can)",34],
+ ["Dark chocolate (50g)",20],
+];
+
+const FREQ4=[["Not during the past month",0],["Less than once a week",1],["Once or twice a week",2],["Three or more times a week",3]];
+
+const PSQI5=[
+ "a. Cannot get to sleep within 30 minutes",
+ "b. Wake up in the middle of the night or early morning",
+ "c. Have to get up to use the bathroom",
+ "d. Cannot breathe comfortably",
+ "e. Cough or snore loudly",
+ "f. Feel too cold",
+ "g. Feel too hot",
+ "h. Had bad dreams",
+ "i. Have pain",
+];
+
+/* ---------- state ---------- */
+function loadDraft(){
+  try{ const raw=localStorage.getItem("prescreen-draft"); if(raw) return JSON.parse(raw); }catch(e){}
+  return null;
+}
+function saveDraft(){
+  try{ localStorage.setItem("prescreen-draft", JSON.stringify(S)); }catch(e){}
+}
+const DEFAULT_STATE = {
+  testMode:false,
+  first:"", last:"", mass:"", height:"", bench1rm:"", squat1rm:"", athleticLevel:"", age:"", sex:"", gender:"",
+  csm:{}, lv:{}, caff:{servings:{}, other:"", }, sleep:{wdBed:"",wdWake:"",weBed:"",weWake:"",train:"",years:"",freq:"",duration:"",preferredTime:""},
+  lifestyle:{shiftWork:"",smoking:"",alcohol:"",sleepDisorder:"",tzTravel:"",napFreq:"",injury:""},
+  psqi:{bed:"",lat:"",wake:"",hrs:"",d5:{},d5other:"",qual:"",med:"",q8:"",q9:""}
+};
+function deepMerge(base, override){
+  if(override==null || typeof override!=="object") return base;
+  const out = Array.isArray(base) ? base.slice() : {...base};
+  Object.keys(base).forEach(k=>{
+    if(override[k]!=null && typeof base[k]==="object" && typeof override[k]==="object" && !Array.isArray(base[k])){
+      out[k] = deepMerge(base[k], override[k]);
+    } else if(override[k]!==undefined){
+      out[k] = override[k];
+    }
+  });
+  return out;
+}
+let S = deepMerge(DEFAULT_STATE, loadDraft());
+let step = 0;
+const TOTAL_STEPS = 9;
+
+function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstElementChild;}
+
+/* ---------- step builders ---------- */
+function buildAbout(){
+  const c=el(`<div class="card">
+    <h2>About you</h2>
+    <div class="hint">Used only to label your results.</div>
+    <div class="field row2">
+      <div><label class="ql">First name</label><input type="text" id="first"></div>
+      <div><label class="ql">Last name</label><input type="text" id="last"></div>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">Age</label><input type="number" min="0" step="1" id="age"></div>
+      <div><label class="ql">Sex <span style="color:var(--sub);font-weight:400">(biological)</span></label>
+        <select id="sex"><option value="">Select…</option><option>Male</option><option>Female</option><option>Intersex</option><option>Prefer not to say</option></select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="ql">Gender</label>
+      <select id="gender"><option value="">Select…</option><option>Man</option><option>Woman</option><option>Non-binary</option><option>Prefer to self-describe</option><option>Prefer not to say</option></select>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">Height (cm)</label><input type="number" min="0" step="0.5" id="height"></div>
+      <div><label class="ql">Body mass (kg)</label><input type="number" min="0" step="0.1" id="mass"></div>
+    </div>
+    <div class="field">
+      <label class="ql" style="margin-bottom:2px">Estimated 1RM <span style="color:var(--sub);font-weight:400">(only relevant to the Strength study)</span></label>
+      <div class="row2" style="margin-top:10px">
+        <div><label class="ql" style="font-weight:400;font-size:13px">Bench press (kg)</label><input type="number" min="0" step="0.5" id="bench1rm"></div>
+        <div><label class="ql" style="font-weight:400;font-size:13px">Back squat (kg)</label><input type="number" min="0" step="0.5" id="squat1rm"></div>
+      </div>
+    </div>
+  </div>`);
+  c.querySelector("#first").value=S.first; c.querySelector("#last").value=S.last; c.querySelector("#mass").value=S.mass;
+  c.querySelector("#bench1rm").value=S.bench1rm; c.querySelector("#squat1rm").value=S.squat1rm;
+  c.querySelector("#age").value=S.age; c.querySelector("#sex").value=S.sex; c.querySelector("#gender").value=S.gender;
+  c.querySelector("#height").value=S.height;
+  c.querySelector("#first").oninput=e=>{ S.first=e.target.value; afterAnswer(); };
+  c.querySelector("#last").oninput=e=>{ S.last=e.target.value; afterAnswer(); };
+  c.querySelector("#age").oninput=e=>{ S.age=e.target.value; afterAnswer(); };
+  c.querySelector("#sex").oninput=e=>{ S.sex=e.target.value; afterAnswer(); };
+  c.querySelector("#gender").oninput=e=>{ S.gender=e.target.value; afterAnswer(); };
+  c.querySelector("#mass").oninput=e=>{ S.mass=e.target.value; afterAnswer(); };
+  c.querySelector("#height").oninput=e=>{ S.height=e.target.value; afterAnswer(); };
+  c.querySelector("#bench1rm").oninput=e=>S.bench1rm=e.target.value;
+  c.querySelector("#squat1rm").oninput=e=>S.squat1rm=e.target.value;
+  return [c];
+}
+
+function afterAnswer(){
+  saveDraft();
+  document.getElementById("nextBtn").disabled = !stepValid();
+}
+
+function scrollToNext(){
+  const stepHost = document.getElementById("steps");
+  const fields = Array.from(stepHost.querySelectorAll(".field"));
+  const target = fields.find(f => f.querySelector("input[type=radio]") && !f.querySelector("input[type=radio]:checked"));
+  const dest = target || document.getElementById("nextBtn");
+  setTimeout(()=>dest.scrollIntoView({behavior:"smooth", block:"center"}), 120);
+}
+
+function optRow(name, value, options, onPick, groupKey){
+  const row=el(`<div class="opts"></div>`);
+  options.forEach(([label,val])=>{
+    const checked = String(value)===String(val);
+    const o=el(`<label class="opt ${checked?'checked':''}"><input type="radio" name="${name}" ${checked?'checked':''}><span>${label}</span></label>`);
+    o.querySelector("input").onchange=()=>{
+      onPick(val);
+      row.querySelectorAll(".opt").forEach(x=>x.classList.remove("checked"));
+      o.classList.add("checked");
+      afterAnswer();
+      scrollToNext();
+    };
+    row.appendChild(o);
+  });
+  return row;
+}
+
+function likertRow(name, value, onPick){
+  const row=el(`<div class="likert"></div>`);
+  [1,2,3,4,5].forEach(v=>{
+    const checked = String(value)===String(v);
+    const o=el(`<label class="lopt ${checked?'checked':''}"><input type="radio" name="${name}">${v}<span>${LIKERT_LABELS[v-1]}</span></label>`);
+    o.querySelector("input").checked=checked;
+    o.onclick=()=>{
+      onPick(v);
+      row.querySelectorAll(".lopt").forEach(x=>x.classList.remove("checked"));
+      o.classList.add("checked");
+      afterAnswer();
+      scrollToNext();
+    };
+    row.appendChild(o);
+  });
+  return row;
+}
+
+const MCKAY_TIERS = [
+  ["Tier 0 — Sedentary","Does not currently engage in structured exercise training and does not meet recommended physical activity guidelines."],
+  ["Tier 1 — Recreationally Active","Engages in structured training or sport a few times a week, but doesn’t compete, or competes only occasionally at a recreational level."],
+  ["Tier 2 — Trained / Developmental","Trains consistently and competes regularly at club or regional level, below national standard."],
+  ["Tier 3 — Highly Trained / National Level","Competes at national level and is ranked within their country; trains in a structured, periodised programme most days of the week."],
+  ["Tier 4 — Elite / International Level","Competes at international level, often professionally or semi-professionally, and is ranked among the top in their country or sport."],
+  ["Tier 5 — World Class","Performs at the very top of their sport worldwide — Olympic, World Championship or world-record level."],
+];
+
+function buildAthleticLevel(){
+  const card=el(`<div class="card"><h2>Athletic level</h2><div class="hint">Based on the McKay et al. (2022) Participant Classification Framework. Pick the tier that best matches your current training and competition level — read each description before choosing.</div></div>`);
+  const row=el(`<div class="opts"></div>`);
+  MCKAY_TIERS.forEach(([name,desc])=>{
+    const checked = S.athleticLevel===name;
+    const o=el(`<label class="opt ${checked?'checked':''}" style="align-items:flex-start;padding:12px 14px">
+      <input type="radio" name="mckay" ${checked?'checked':''} style="margin-top:3px">
+      <span><strong style="display:block;margin-bottom:3px">${name}</strong><span style="color:var(--sub);font-size:12.5px;line-height:1.4">${desc}</span></span>
+    </label>`);
+    o.querySelector("input").onchange=()=>{
+      S.athleticLevel=name;
+      row.querySelectorAll(".opt").forEach(x=>x.classList.remove("checked"));
+      o.classList.add("checked");
+      afterAnswer();
+      scrollToNext();
+    };
+    row.appendChild(o);
+  });
+  card.appendChild(row);
+  return [card];
+}
+
+function buildCSM(){
+  const cards=[el(`<div class="card"><h2>Composite Morningness Questionnaire</h2><div class="hint">For each question, choose the option that best describes your own natural preference — not what your schedule currently forces on you.</div></div>`)];
+  CSM.forEach((q,i)=>{
+    const card=el(`<div class="card"></div>`);
+    const f=el(`<div class="field"><label class="ql"><span class="num">${i+1}.</span>${q.p}</label></div>`);
+    f.appendChild(optRow("csm"+i, S.csm[i], q.opts, v=>S.csm[i]=v));
+    card.appendChild(f);
+    cards.push(card);
+  });
+  return cards;
+}
+
+function buildLV(){
+  const cards=[el(`<div class="card"><h2>Flexibility &amp; vigour</h2><div class="hint">Answer quickly — your first reaction matters more than a carefully considered one. There are no right or wrong answers.</div></div>`)];
+  LV.forEach((q,i)=>{
+    const card=el(`<div class="card"></div>`);
+    const f=el(`<div class="field"><label class="ql"><span class="num">${i+1}.</span>${q.p}</label></div>`);
+    f.appendChild(likertRow("lv"+i, S.lv[i], v=>S.lv[i]=v));
+    card.appendChild(f);
+    cards.push(card);
+  });
+  return cards;
+}
+
+function buildCaffeine(){
+  const card=el(`<div class="card"><h2>Habitual caffeine intake</h2><div class="hint">Your typical servings per day for each source. Leave at 0 if you don’t use it.</div></div>`);
+  CAFF_SOURCES.forEach(([name,mg],i)=>{
+    const row=el(`<div class="srcrow">
+      <div><div class="sname">${name}</div><div class="smg">${mg}mg per serving</div></div>
+      <input type="number" min="0" step="0.5" placeholder="0" value="${S.caff.servings[i]??''}" aria-label="servings per day">
+      <div style="font-size:12.5px;color:var(--sub)">per day</div>
+    </div>`);
+    row.querySelector("input").oninput=e=>S.caff.servings[i]=e.target.value;
+    card.appendChild(row);
+  });
+  const other=el(`<div class="field" style="margin-top:14px"><label class="ql">Other caffeine sources (tablets, other supplements) — total mg per day</label><input type="number" min="0" step="1" style="max-width:160px" value="${S.caff.other||''}"></div>`);
+  other.querySelector("input").oninput=e=>S.caff.other=e.target.value;
+  card.appendChild(other);
+  return [card];
+}
+
+function buildSleepWake(){
+  const sl=S.sleep;
+  const card=el(`<div class="card"><h2>Habitual sleep &amp; wake times</h2><div class="hint">Your normal routine over the last month, not an unusual night.</div>
+    <div class="field row2">
+      <div><label class="ql">Weekday bedtime</label><input type="time" id="wdBed"></div>
+      <div><label class="ql">Weekday wake time</label><input type="time" id="wdWake"></div>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">Weekend bedtime</label><input type="time" id="weBed"></div>
+      <div><label class="ql">Weekend wake time</label><input type="time" id="weWake"></div>
+    </div>
+  </div>`);
+  ["wdBed","wdWake","weBed","weWake"].forEach(k=>{card.querySelector("#"+k).value=sl[k]; card.querySelector("#"+k).oninput=e=>sl[k]=e.target.value;});
+
+  const train=el(`<div class="card"><h2>Training routine</h2>
+    <div class="field row2">
+      <div><label class="ql">Years of structured training experience</label><input type="number" min="0" step="0.5" id="years"></div>
+      <div><label class="ql">Sessions per week</label><input type="number" min="0" step="1" id="freq"></div>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">Typical session duration (minutes)</label><input type="number" min="0" step="5" id="duration"></div>
+      <div><label class="ql">Preferred training time</label>
+        <select id="preferredTime"><option value="">Select…</option><option>Morning</option><option>Midday</option><option>Afternoon</option><option>Evening</option><option>No strong preference</option></select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="ql">When do you normally train, and at what times?</label>
+      <textarea id="traintext" placeholder="e.g. Monday 08:00, Thursday 17:00">${sl.train}</textarea>
+    </div>
+  </div>`);
+  ["years","freq","duration","preferredTime"].forEach(k=>{train.querySelector("#"+k).value=sl[k]; train.querySelector("#"+k).oninput=e=>sl[k]=e.target.value;});
+  train.querySelector("#traintext").oninput=e=>sl.train=e.target.value;
+
+  return [card, train];
+}
+
+function buildLifestyle(){
+  const lf=S.lifestyle;
+  const card=el(`<div class="card"><h2>Lifestyle &amp; safety screening</h2><div class="hint">These help us account for factors that affect sleep and circadian rhythm, and check you can safely take part in maximal-effort testing.</div>
+    <div class="field row2">
+      <div><label class="ql">Do you currently work night or rotating shifts?</label><select id="shiftWork"><option value="">Select…</option><option>No</option><option>Yes</option></select></div>
+      <div><label class="ql">Smoking status</label><select id="smoking"><option value="">Select…</option><option>Never smoked</option><option>Former smoker</option><option>Current smoker</option></select></div>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">Alcohol — units in an average week</label><input type="number" min="0" step="1" id="alcohol"></div>
+      <div><label class="ql">How often do you nap during the day?</label><select id="napFreq"><option value="">Select…</option><option>Never</option><option>Rarely (less than once a week)</option><option>1–2 times a week</option><option>Most days</option></select></div>
+    </div>
+    <div class="field">
+      <label class="ql">Have you crossed more than 2 time zones from home in the last month?</label>
+      <select id="tzTravel"><option value="">Select…</option><option>No</option><option>Yes</option></select>
+    </div>
+    <div class="field">
+      <label class="ql">Diagnosed sleep disorder, or medication that affects your sleep?</label>
+      <input type="text" id="sleepDisorder" placeholder="Leave blank if none, otherwise describe briefly">
+    </div>
+    <div class="field">
+      <label class="ql">Any current injury, or cardiovascular/other medical condition that would limit a maximal-effort lift or time trial?</label>
+      <input type="text" id="injury" placeholder="Leave blank if none, otherwise describe briefly">
+    </div>
+  </div>`);
+  ["shiftWork","smoking","alcohol","napFreq","tzTravel","sleepDisorder","injury"].forEach(k=>{card.querySelector("#"+k).value=lf[k]; card.querySelector("#"+k).oninput=e=>lf[k]=e.target.value;});
+  return [card];
+}
+
+function freqSelect(name,value,onPick,labels){
+  labels = labels || FREQ4;
+  const row=el(`<div class="opts"></div>`);
+  labels.forEach(([l,v])=>{
+    const checked=String(value)===String(v);
+    const o=el(`<label class="opt ${checked?'checked':''}"><input type="radio" name="${name}" ${checked?'checked':''}><span>${l}</span></label>`);
+    o.querySelector("input").onchange=()=>{
+      onPick(v);
+      row.querySelectorAll(".opt").forEach(x=>x.classList.remove("checked"));
+      o.classList.add("checked");
+      afterAnswer();
+      scrollToNext();
+    };
+    row.appendChild(o);
+  });
+  return row;
+}
+
+function buildPSQI(){
+  const p=S.psqi;
+  const intro=el(`<div class="card"><h2>Pittsburgh Sleep Quality Index</h2><div class="hint">About your usual sleep over the past month only.</div>
+    <div class="field row2">
+      <div><label class="ql">1. Usual bedtime</label><input type="time" id="bed" value="${p.bed}"></div>
+      <div><label class="ql">3. Usual wake time</label><input type="time" id="wake" value="${p.wake}"></div>
+    </div>
+    <div class="field row2">
+      <div><label class="ql">2. Minutes to fall asleep</label><input type="number" min="0" id="lat" value="${p.lat}"></div>
+      <div><label class="ql">4. Hours of actual sleep per night</label><input type="number" min="0" step="0.25" id="hrs" value="${p.hrs}"></div>
+    </div>
+  </div>`);
+  intro.querySelector("#bed").oninput=e=>{ p.bed=e.target.value; afterAnswer(); };
+  intro.querySelector("#wake").oninput=e=>{ p.wake=e.target.value; afterAnswer(); };
+  intro.querySelector("#lat").oninput=e=>{ p.lat=e.target.value; afterAnswer(); };
+  intro.querySelector("#hrs").oninput=e=>{ p.hrs=e.target.value; afterAnswer(); };
+
+  const q5card=el(`<div class="card"><h2>5. During the past month, how often have you had trouble sleeping because you…</h2></div>`);
+  PSQI5.forEach((label,i)=>{
+    const f=el(`<div class="field"><label class="ql">${label}</label></div>`);
+    f.appendChild(freqSelect("d5_"+i, p.d5[i], v=>p.d5[i]=v));
+    q5card.appendChild(f);
+  });
+  const otherF=el(`<div class="field"><label class="ql">j. Other reason(s) — please describe, and rate frequency</label><input type="text" style="margin-bottom:10px" value="${p.d5other||''}" placeholder="describe"></div>`);
+  otherF.querySelector("input").oninput=e=>{ p.d5other=e.target.value; afterAnswer(); };
+  otherF.appendChild(freqSelect("d5_j", p.d5["j"], v=>p.d5["j"]=v));
+  q5card.appendChild(otherF);
+
+  const rest=el(`<div class="card">
+    <div class="field"><label class="ql">6. Overall, how would you rate your sleep quality?</label></div>
+  </div>`);
+  rest.querySelector(".field").appendChild(freqSelect("qual", p.qual, v=>p.qual=v, [["Very good",0],["Fairly good",1],["Fairly bad",2],["Very bad",3]]));
+  const f7=el(`<div class="field"><label class="ql">7. During the past month, how often have you taken medicine to help you sleep?</label></div>`);
+  f7.appendChild(freqSelect("med", p.med, v=>p.med=v));
+  rest.appendChild(f7);
+  const f8=el(`<div class="field"><label class="ql">8. During the past month, how often have you had trouble staying awake while driving, eating meals, or taking part in social activity?</label></div>`);
+  f8.appendChild(freqSelect("q8", p.q8, v=>p.q8=v));
+  rest.appendChild(f8);
+  const f9=el(`<div class="field"><label class="ql">9. During the past month, how much of a problem has it been to keep up enough enthusiasm to get things done?</label></div>`);
+  f9.appendChild(freqSelect("q9", p.q9, v=>p.q9=v, [["No problem at all",0],["Only a slight problem",1],["Somewhat of a problem",2],["A very big problem",3]]));
+  rest.appendChild(f9);
+
+  return [intro,q5card,rest];
+}
+
+/* ---------- scoring ---------- */
+function timeToMin(t){ if(!t) return null; const [h,m]=t.split(":").map(Number); return h*60+m; }
+function hoursBetween(bed,wake){ // handles overnight
+  const b=timeToMin(bed), w=timeToMin(wake);
+  if(b==null||w==null) return null;
+  let diff = w - b; if(diff<=0) diff += 24*60;
+  return diff/60;
+}
+function midsleep(bed,durHrs){
+  const b=timeToMin(bed); if(b==null||durHrs==null) return null;
+  let m = (b + durHrs*60/2) % (24*60);
+  return m;
+}
+function minToClock(m){
+  if(m==null) return "–";
+  m = ((m%1440)+1440)%1440;
+  const h=Math.floor(m/60), mi=Math.round(m%60);
+  return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
+}
+
+function bucket(v, table){ // table: [[max, score], ...] ascending, last entry Infinity
+  for(const [max,score] of table){ if(v<=max) return score; }
+  return table[table.length-1][1];
+}
+
+function computeResults(){
+  const out = {};
+
+  // CSM
+  let csmSum=0, csmAns=0;
+  CSM.forEach((_,i)=>{ if(S.csm[i]!=null){csmSum+=Number(S.csm[i]); csmAns++;} });
+  out.csm = {score:csmSum, answered:csmAns, total:CSM.length,
+    category: csmSum<=22?"Evening type":(csmSum>=44?"Morning type":"Intermediate type")};
+
+  // LV / FR
+  let fr=0, lv=0, frN=0, lvN=0;
+  LV.forEach((q,i)=>{ const v=S.lv[i]; if(v==null) return; if(q.tag==="FR"){fr+=Number(v);frN++;} else {lv+=Number(v);lvN++;} });
+  out.fr = {score:fr, answered:frN, total:LV.filter(q=>q.tag==="FR").length, category: fr>37?"More flexible":"More rigid"};
+  out.lv = {score:lv, answered:lvN, total:LV.filter(q=>q.tag==="LV").length, category: lv>37?"More languid":"More vigorous"};
+
+  // classification framework (morningness x flexibility)
+  const morn = out.csm.category.startsWith("Morning") ? "Morning" : out.csm.category.startsWith("Evening") ? "Evening" : "Intermediate";
+  const flex = out.fr.category==="More flexible" ? "Flexible" : "Rigid";
+  out.classification = `${morn} type, ${flex}`;
+
+  // caffeine
+  let caffMg=0;
+  CAFF_SOURCES.forEach(([_,mg],i)=>{ const n=Number(S.caff.servings[i]||0); caffMg += n*mg; });
+  caffMg += Number(S.caff.other||0);
+  out.caffeine = {mg:Math.round(caffMg), perKg: S.mass? (caffMg/Number(S.mass)).toFixed(1) : null,
+    category: caffMg<100?"Low":(caffMg<=400?"Moderate":"High")};
+
+  // sleep/wake + social jetlag
+  const sl=S.sleep;
+  const wdDur = hoursBetween(sl.wdBed, sl.wdWake);
+  const weDur = hoursBetween(sl.weBed, sl.weWake);
+  const msw = midsleep(sl.wdBed, wdDur);
+  const msf = midsleep(sl.weBed, weDur);
+  let sjl = null;
+  if(msw!=null && msf!=null){ let d=Math.abs(msf-msw); if(d>720) d=1440-d; sjl=(d/60); }
+  out.sleepwake = {wdDur, weDur, msw:minToClock(msw), msf:minToClock(msf), sjl};
+
+  // PSQI
+  const p=S.psqi;
+  const c1 = p.qual!==""&&p.qual!=null ? Number(p.qual) : 0;
+  const hrs=Number(p.hrs||0);
+  const q2score = bucket(Number(p.lat||0), [[14,0],[30,1],[60,2],[Infinity,3]]);
+  const q5a = Number(p.d5[0]||0);
+  const sum25 = q2score + q5a;
+  const c2 = bucket(sum25, [[0,0],[2,1],[4,2],[Infinity,3]]);
+  const comp3 = hrs>7?0:(hrs>=6?1:(hrs>=5?2:3));
+  const tib = hoursBetween(p.bed, p.wake);
+  let eff = null, comp4 = null;
+  if(tib && hrs){ eff = Math.min(100,(hrs/tib)*100); comp4 = eff>85?0:(eff>=75?1:(eff>=65?2:3)); }
+  let sum5bj=0; for(let i=1;i<9;i++){ sum5bj += Number(p.d5[i]||0); } sum5bj += Number(p.d5["j"]||0);
+  const comp5 = sum5bj===0?0:(sum5bj<=9?1:(sum5bj<=18?2:3));
+  const comp6 = p.med!==""&&p.med!=null?Number(p.med):0;
+  const sum89 = Number(p.q8||0)+Number(p.q9||0);
+  const comp7 = bucket(sum89, [[0,0],[2,1],[4,2],[Infinity,3]]);
+  const comp4Val = comp4==null?0:comp4;
+  const globalScore = c1+c2+comp3+comp4Val+comp5+comp6+comp7;
+  out.psqi = {c1,c2,c3:comp3,c4:comp4, c5:comp5, c6:comp6, c7:comp7, global:globalScore, efficiency: eff,
+    category: globalScore<=5?"Good sleeper":"Poor sleeper"};
+
+  return out;
+}
+
+/* ---------- results rendering ---------- */
+function scoreCard(name,val,cat,catClass,meta){
+  return `<div class="scorecard">
+    <div class="top"><div class="name">${name}</div><div class="val">${val}</div></div>
+    <div class="cat ${catClass}">${cat}</div>
+    ${meta?`<div class="meta">${meta}</div>`:""}
+  </div>`;
+}
+
+function buildResults(){
+  const r = computeResults();
+  const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
+  const catClassCSM = r.csm.category.startsWith("Morning")?"cat-morning":(r.csm.category.startsWith("Evening")?"cat-evening":"cat-mid");
+
+  const wrap = el(`<div class="card"><h2>Results for ${who}</h2><div class="hint">Calculated from your answers above. Nothing has been sent anywhere — copy the summary below to send on.</div><div id="rescards"></div></div>`);
+  const rc = wrap.querySelector("#rescards");
+  if(S.lifestyle.injury && S.lifestyle.injury.trim()){
+    rc.insertAdjacentHTML("beforeend", scoreCard("Safety screening", "Flagged", "Needs clearance before maximal testing", "cat-warn", `Reported: “${S.lifestyle.injury}” — please review before any 1RM or time-trial test.`));
+  }
+  rc.insertAdjacentHTML("beforeend", scoreCard("Chronotype (CSM)", r.csm.score+" / 55", r.csm.category, catClassCSM, `${r.csm.answered} of ${r.csm.total} items answered.`));
+  rc.insertAdjacentHTML("beforeend", scoreCard("Flexibility / rigidity", r.fr.score, r.fr.category, r.fr.category==="More flexible"?"cat-morning":"cat-mid", `${r.fr.answered} of ${r.fr.total} items. Threshold: >37 = more flexible.`));
+  rc.insertAdjacentHTML("beforeend", scoreCard("Languidness / vigour", r.lv.score, r.lv.category, r.lv.category==="More languid"?"cat-evening":"cat-mid", `${r.lv.answered} of ${r.lv.total} items. Threshold: >37 = more languid.`));
+  rc.insertAdjacentHTML("beforeend", scoreCard("Combined classification", r.classification, "auto-derived", "cat-mid", "Chronotype crossed with flexibility/rigidity."));
+  rc.insertAdjacentHTML("beforeend", scoreCard("Habitual caffeine", r.caffeine.mg+" mg/day", r.caffeine.category+(r.caffeine.perKg?` · ${r.caffeine.perKg} mg/kg/day`:""), r.caffeine.category==="High"?"cat-warn":(r.caffeine.category==="Moderate"?"cat-mid":"cat-good")));
+  const sjlTxt = r.sleepwake.sjl!=null ? r.sleepwake.sjl.toFixed(1)+" h" : "–";
+  rc.insertAdjacentHTML("beforeend", scoreCard("Social jet lag", sjlTxt, "midsleep shift, weekday vs weekend", "cat-mid",
+    `Weekday time in bed ${r.sleepwake.wdDur?r.sleepwake.wdDur.toFixed(1)+"h":"–"} (midsleep ${r.sleepwake.msw}) · weekend ${r.sleepwake.weDur?r.sleepwake.weDur.toFixed(1)+"h":"–"} (midsleep ${r.sleepwake.msf})`));
+  rc.insertAdjacentHTML("beforeend", scoreCard("PSQI global score", r.psqi.global+" / 21", r.psqi.category, r.psqi.category==="Good sleeper"?"cat-good":"cat-warn",
+    `Components — quality ${r.psqi.c1}, latency ${r.psqi.c2}, duration ${r.psqi.c3}, efficiency ${r.psqi.c4??"–"}${r.psqi.efficiency?` (${r.psqi.efficiency.toFixed(0)}%)`:""}, disturbance ${r.psqi.c5}, medication ${r.psqi.c6}, daytime dysfunction ${r.psqi.c7}.`));
+
+  const JOAO_EMAIL = "spsjagul@ljmu.ac.uk";
+  const LUKE_EMAIL = "L.Towler@2023.ljmu.ac.uk";
+  const strengthText = buildSummaryText(who, r, "Joao");
+  const ttText = buildSummaryText(who, r, "Luke");
+  const subject = encodeURIComponent("Prescreening results — "+who);
+  const strengthMailto = `mailto:${JOAO_EMAIL}?subject=${subject}&body=${encodeURIComponent(strengthText)}`;
+  const ttMailto = `mailto:${LUKE_EMAIL}?cc=${encodeURIComponent(JOAO_EMAIL)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
+  const esc0 = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
+  const tableVals = [who, S.age||"", S.height||"", S.mass||"", r.csm.score, r.lv.score, r.fr.score, S.psqi.bed||"", S.psqi.wake||"", S.psqi.hrs||"", r.caffeine.mg+" mg", r.psqi.global, S.athleticLevel||"", S.bench1rm||"", S.squat1rm||"", S.sleep.years||""];
+  const tableHtml = `<table style="border-collapse:collapse;width:100%;font-size:11.5px">
+    <tr>${tableCols.map(c=>`<th style="border:1px solid #999;padding:5px 7px;text-align:left;white-space:nowrap">${esc0(c)}</th>`).join("")}</tr>
+    <tr>${tableVals.map(v=>`<td style="border:1px solid #999;padding:5px 7px;white-space:nowrap">${esc0(v)}</td>`).join("")}</tr>
+  </table>`;
+  const tableTSV = tableCols.join("\t")+"\n"+tableVals.join("\t");
+
+  const copyCard = el(`<div class="card">
+    <h2>Send your results</h2>
+    <div class="hint">Tap the button for the study you’re taking part in — it opens your default mail app with everything already filled in, including the data table below. Just hit send.</div>
+    <a href="${strengthMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#c0392b;border-color:#c0392b;color:#fff;margin-bottom:18px">I am taking part in Strength</a>
+
+    <a href="${ttMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#2f7a52;border-color:#2f7a52;color:#fff;margin-bottom:14px">I am taking part in Time Trial</a>
+
+    <div class="hint" style="margin:4px 0 10px">Pick the study you’re taking part in — it opens your default mail app with everything already filled in, ready to send. If nothing opens, copy the table or text below instead and paste it into a new email to <strong style="user-select:all">${JOAO_EMAIL}</strong> (Strength) or <strong style="user-select:all">${LUKE_EMAIL}</strong> (Time Trial, cc ${JOAO_EMAIL}).</div>
+    <div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px" id="dataTableWrap"></div>
+    <button class="btn-ghost" id="copyTableBtn" style="width:100%;margin-bottom:10px">Copy as table</button>
+    <div class="copybox" id="summarybox"></div>
+    <button class="btn-ghost" id="copyBtn" style="width:100%">Copy full results text</button>
+  </div>`);
+  copyCard.querySelector("#dataTableWrap").innerHTML = tableHtml;
+  copyCard.querySelector("#copyTableBtn").onclick = async ()=>{
+    try{
+      if(window.ClipboardItem){
+        const item = new ClipboardItem({
+          "text/html": new Blob([tableHtml], {type:"text/html"}),
+          "text/plain": new Blob([tableTSV], {type:"text/plain"}),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(tableTSV);
+      }
+      showToast("Table copied — paste into Excel or Sheets");
+    }catch(e){
+      try{ await navigator.clipboard.writeText(tableTSV); showToast("Table copied as text"); }
+      catch(e2){
+        const range=document.createRange(); range.selectNodeContents(copyCard.querySelector("#dataTableWrap"));
+        const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        showToast("Select All above and copy");
+      }
+    }
+  };
+  copyCard.querySelector("#summarybox").textContent = strengthText;
+  copyCard.querySelector("#copyBtn").onclick = async ()=>{
+    try{ await navigator.clipboard.writeText(strengthText); showToast("Copied"); }
+    catch(e){
+      const range=document.createRange(); range.selectNodeContents(copyCard.querySelector("#summarybox"));
+      const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      showToast("Select All above and copy");
+    }
+  };
+
+  return [wrap, copyCard];
+}
+
+function buildSummaryText(who, r, greet){
+  const cols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS"];
+  const vals = [
+    who,
+    S.age||"",
+    S.height||"",
+    S.mass||"",
+    r.csm.score,
+    r.lv.score,
+    r.fr.score,
+    S.psqi.bed||"",
+    S.psqi.wake||"",
+    S.psqi.hrs||"",
+    r.caffeine.mg+" mg",
+    r.psqi.global,
+    S.athleticLevel||"",
+    S.bench1rm||"",
+    S.squat1rm||"",
+  ];
+  const lines = [
+    `Hi ${greet||"Joao"},`,
+    ``,
+    `I have completed the pre-screening questionnaire and this is my results.`,
+    ``,
+    cols.join("\t"),
+    vals.join("\t"),
+    ``,
+    `(Sex: ${S.sex||"n/a"} · Gender: ${S.gender||"n/a"} · Date: ${new Date().toISOString().slice(0,10)})`,
+    `Chronotype category: ${r.csm.category} · Combined classification: ${r.classification}`,
+    `Weekday time in bed: ${r.sleepwake.wdDur?r.sleepwake.wdDur.toFixed(1)+"h":"n/a"} (midsleep ${r.sleepwake.msw}) · Weekend: ${r.sleepwake.weDur?r.sleepwake.weDur.toFixed(1)+"h":"n/a"} (midsleep ${r.sleepwake.msf}) · Social jet lag: ${r.sleepwake.sjl!=null?r.sleepwake.sjl.toFixed(1)+"h":"n/a"}`,
+    `Training: ${S.sleep.years||"n/a"} yrs experience · ${S.sleep.freq||"n/a"} sessions/wk · ${S.sleep.duration||"n/a"} min/session · prefers ${S.sleep.preferredTime||"n/a"}`,
+    `Training schedule: ${S.sleep.train||"n/a"}`,
+    `Shift work: ${S.lifestyle.shiftWork||"n/a"} · Smoking: ${S.lifestyle.smoking||"n/a"} · Alcohol: ${S.lifestyle.alcohol||"0"} units/wk · Naps: ${S.lifestyle.napFreq||"n/a"} · Recent time-zone travel: ${S.lifestyle.tzTravel||"n/a"}`,
+    `Sleep disorder/medication: ${S.lifestyle.sleepDisorder||"None reported"}`,
+    `Injury/medical flag: ${S.lifestyle.injury||"None reported"}`,
+    `Pittsburgh components — quality ${r.psqi.c1}, latency ${r.psqi.c2}, duration ${r.psqi.c3}, efficiency ${r.psqi.c4??"n/a"}, disturbance ${r.psqi.c5}, medication ${r.psqi.c6}, daytime dysfunction ${r.psqi.c7}`,
+  ];
+  return lines.join("\n");
+}
+
+function showToast(msg){
+  const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1600);
+}
+
+/* ---------- step machine ---------- */
+const STEP_NAMES = ["About you","Athletic level","Chronotype","Flexibility & vigour","Caffeine","Lifestyle & safety","Sleep & training","Sleep quality (PSQI)","Results"];
+const STEP_BUILDERS = [buildAbout, buildAthleticLevel, buildCSM, buildLV, buildCaffeine, buildLifestyle, buildSleepWake, buildPSQI, buildResults];
+
+function stepValid(){
+  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.age!=="" && S.sex!=="" && S.gender!=="" && S.height!=="" && S.mass!==""; // 1RM stays optional
+  if(step===1) return true;
+  if(step===2) return CSM.every((_,i)=>S.csm[i]!=null);
+  if(step===3) return LV.every((_,i)=>S.lv[i]!=null);
+  if(step===4) return true;
+  if(step===5) return true;
+  if(step===6) return true;
+  if(step===7){
+    const p=S.psqi;
+    const d5ok = PSQI5.every((_,i)=>p.d5[i]!=null);
+    return p.bed && p.wake && p.lat!=="" && p.hrs!=="" && d5ok && p.qual!=="" && p.qual!=null && p.med!=="" && p.med!=null && p.q8!=="" && p.q8!=null && p.q9!=="" && p.q9!=null;
+  }
+  return true;
+}
+
+function renderStep(){
+  saveDraft();
+  const host = document.getElementById("steps");
+  host.innerHTML="";
+  try{
+    STEP_BUILDERS[step]().forEach(c=>host.appendChild(c));
+  }catch(err){
+    try{ localStorage.removeItem("prescreen-draft"); }catch(e){}
+    host.innerHTML = `<div class="card"><h2>Something went wrong on this page</h2><div class="hint">Your saved progress on this device may be out of date with the latest version of this form. Reloading the page usually fixes this — your earlier answers on other pages will still be there.</div><button class="btn-primary" onclick="location.reload()">Reload page</button></div>`;
+    console.error(err);
+  }
+  document.getElementById("pfill").style.width = (step/(TOTAL_STEPS-1)*100)+"%";
+  document.getElementById("steplabel").textContent = step===TOTAL_STEPS-1 ? "Done" : `Step ${step+1} of ${TOTAL_STEPS-1}`;
+  document.getElementById("stepname").textContent = STEP_NAMES[step];
+  document.getElementById("backBtn").style.visibility = step===0 ? "hidden" : "visible";
+  const nextBtn = document.getElementById("nextBtn");
+  if(step===TOTAL_STEPS-1){ nextBtn.style.display="none"; } else { nextBtn.style.display="inline-block"; nextBtn.textContent = step===TOTAL_STEPS-2 ? "See results" : "Continue"; }
+  const incomplete = !stepValid();
+  nextBtn.disabled = incomplete;
+  document.getElementById("incompleteNote").hidden = !incomplete;
+}
+
+document.getElementById("backBtn").onclick=()=>{ if(step>0){ step--; renderStep(); window.scrollTo({top:0, behavior:"instant"}); } };
+document.getElementById("nextBtn").onclick=()=>{ if(stepValid() && step<TOTAL_STEPS-1){ step++; renderStep(); window.scrollTo({top:0, behavior:"instant"}); } };
+
+renderStep();
+</script>
+</body>
+</html>
