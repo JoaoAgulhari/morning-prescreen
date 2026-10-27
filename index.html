@@ -692,7 +692,7 @@ function buildResults(){
   const LUKE_EMAIL = "L.Towler@2023.ljmu.ac.uk";
   const strengthText = buildSummaryText(who, r, "Joao");
   const ttText = buildSummaryText(who, r, "Luke");
-  const subject = encodeURIComponent("Prescreening results — "+who);
+  const subject = encodeURIComponent("[Prescreening] "+who);
   const ljmuEmail = S.ljmuUsername.trim() ? `${S.ljmuUsername.trim()}@ljmu.ac.uk` : "";
   const strengthMailto = `mailto:${JOAO_EMAIL}?${ljmuEmail?`cc=${encodeURIComponent(ljmuEmail)}&`:""}subject=${subject}&body=${encodeURIComponent(strengthText)}`;
   const ttCC = [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",");
