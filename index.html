@@ -722,7 +722,7 @@ function buildResults(){
   </table>`;
   const tableTSV = tableCols.join("\t")+"\n"+tableVals.join("\t");
   const sheetPayload = (study)=>Object.assign(
-    { type:"prescreen", study, submittedAt: new Date().toISOString(), ljmuEmail },
+    { type:"prescreen", study, "Submitted At": new Date().toISOString(), "LJMU Email": ljmuEmail },
     Object.fromEntries(tableCols.map((c,i)=>[c, tableVals[i]]))
   );
 

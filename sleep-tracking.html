@@ -309,10 +309,14 @@ function buildDay(i){
   </div>`);
   const sendDayToSheet = ()=>{
     d.sent = true;
-    postToSheet({ type:"sleep_day", submittedAt:new Date().toISOString(), name:who, ljmuEmail:S.ljmuEmail, study:S.study,
-      day:i+1, totalDays:n, date:d.date, bed:d.bed, tryToSleep:d.tryToSleep, sol:d.sol, awakenings:d.awakenings, waso:d.waso,
-      finalWake:d.finalWake, outOfBed:d.outOfBed, quality:qualityLabel(d.quality), comments:d.comments,
-      tibH:score.tibH, tstMin:score.tstMin, sePercent:score.se });
+    postToSheet({ type:"sleep_day", study:S.study,
+      "Submitted At": new Date().toISOString(), "Name": who, "LJMU Email": S.ljmuEmail,
+      "Day": i+1, "Total Days": n, "Date": d.date, "Bed": d.bed, "Try to sleep": d.tryToSleep,
+      "SOL (min)": d.sol, "Awakenings": d.awakenings, "WASO (min)": d.waso, "Final wake": d.finalWake,
+      "Out of bed": d.outOfBed, "Quality": qualityLabel(d.quality), "Comments": d.comments,
+      "TIB (h)": score.tibH!=null ? Number(score.tibH.toFixed(2)) : "",
+      "TST (h)": score.tstMin!=null ? Number((score.tstMin/60).toFixed(2)) : "",
+      "SE (%)": score.se!=null ? Number(score.se.toFixed(0)) : "" });
     afterAnswer();
     sendCard.querySelector("#sentNote").style.display = "block";
   };
@@ -443,8 +447,14 @@ function buildResults(){
     <button class="btn-ghost" id="copyBtn" style="width:100%">Copy full results text</button>
   </div>`);
   const sendWeekToSheet = ()=>{
-    postToSheet({ type:"sleep_summary", submittedAt:new Date().toISOString(), name:who, ljmuEmail:S.ljmuEmail, study:S.study,
-      daysFilled:r.daysFilled, daysTotal:r.daysTotal, avgTIB:r.avgTIB, avgSOL:r.avgSOL, avgWASO:r.avgWASO, avgTST:r.avgTST, avgSE:r.avgSE,
+    postToSheet({ type:"sleep_summary", study:S.study,
+      "Submitted At": new Date().toISOString(), "Name": who, "LJMU Email": S.ljmuEmail,
+      "Days Filled": r.daysFilled, "Days Total": r.daysTotal,
+      "Avg TIB (h)": r.avgTIB!=null ? Number(r.avgTIB.toFixed(2)) : "",
+      "Avg SOL (min)": r.avgSOL!=null ? Number(r.avgSOL.toFixed(0)) : "",
+      "Avg WASO (min)": r.avgWASO!=null ? Number(r.avgWASO.toFixed(0)) : "",
+      "Avg TST (h)": r.avgTST!=null ? Number(r.avgTST.toFixed(2)) : "",
+      "Avg SE (%)": r.avgSE!=null ? Number(r.avgSE.toFixed(0)) : "",
       rows: tableRows });
   };
   copyCard.querySelector("#sendWeekBtn").addEventListener("click", sendWeekToSheet);
