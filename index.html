@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Morning Research Prescreen</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /*
   Design plan
@@ -49,6 +47,8 @@ h1,h2,h3{font-family:"Fraunces",Georgia,serif; text-wrap:balance; margin:0}
 .masthead .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--sub);font-weight:600}
 .masthead h1{font-size:26px;font-weight:600;line-height:1.15}
 .masthead p{color:var(--sub);font-size:14.5px;margin:2px 0 0;line-height:1.5}
+.sleep-link{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:8px 16px;align-self:flex-start;background:var(--card);transition:border-color .15s}
+.sleep-link:hover{border-color:var(--dusk)}
 
 .progress-rail{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:18px 0 26px;position:relative}
 .progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--dawn),var(--dusk));transition:width .35s ease}
@@ -121,6 +121,9 @@ button{font-family:inherit;font-size:14.5px;font-weight:600;border-radius:10px;p
 footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
 [hidden]{display:none!important}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 </head>
 <body>
 <div class="wrap">
@@ -128,6 +131,7 @@ footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
     <div class="eyebrow">LJMU · Morning Neuromuscular Performance Programme</div>
     <h1>Prescreening questionnaire</h1>
     <p>A few short sections on you, your training, chronotype, sleep and caffeine habits. Takes about 10–15 minutes. Each section must be answered in full before you can move on. Your results are scored automatically at the end.</p>
+    <a class="sleep-link" href="sleep-tracking.html">🌙 Sleep tracking →</a>
   </div>
 
   <div class="progress-rail"><div class="progress-fill" id="pfill" style="width:0%"></div></div>
@@ -143,7 +147,6 @@ footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
   <footer>Answers are scored on this device and shown to you to copy or send on &mdash; nothing is submitted automatically.</footer>
 </div>
 <div class="toast" id="toast">Copied</div>
-
 
 <script>
 /* ---------- data ---------- */
@@ -850,5 +853,6 @@ document.getElementById("nextBtn").onclick=()=>{ if(stepValid() && step<TOTAL_ST
 
 renderStep();
 </script>
+
 </body>
 </html>
