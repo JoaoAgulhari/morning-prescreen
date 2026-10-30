@@ -193,7 +193,7 @@ function esc0(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;"
 /* ---------- optional backend backup (Google Sheet via Apps Script) ----------
    Leave SHEET_ENDPOINT blank to disable — the page works exactly the same
    either way, this is purely an extra copy saved centrally. */
-const SHEET_ENDPOINT = "";
+const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyd_HR5krmK9o-fMQD14sBwpub8j8KtaWi7kXA93pK0kshMGraaJsCShNfJnA2mQAOIeQ/exec";
 function postToSheet(payload){
   if(!SHEET_ENDPOINT) return;
   try{
