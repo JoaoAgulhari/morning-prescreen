@@ -126,6 +126,25 @@ footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
 <script>
 /* ---------- data ---------- */
 const QUALITY_OPTS = [["Very poor",1],["Poor",2],["Fair",3],["Good",4],["Very good",5]];
+const JOAO_EMAIL = "spsjagul@ljmu.ac.uk";
+const LUKE_EMAIL = "L.Towler@2023.ljmu.ac.uk";
+const STUDY_OPTS = [["strength","Strength"],["tt","Time Trial"]];
+const owaBase = "https://outlook.office.com/mail/deeplink/compose";
+function studyRecipient(study){
+  // Time Trial mail goes to Luke, cc'd to Joao; Strength mail goes straight to Joao.
+  return study==="tt" ? { to: LUKE_EMAIL, extraCC: [JOAO_EMAIL] } : { to: JOAO_EMAIL, extraCC: [] };
+}
+function mailLinks(study, subject, body, ljmuEmail){
+  const r = studyRecipient(study);
+  const cc = [...r.extraCC, ljmuEmail].filter(Boolean).join(",");
+  const subj = encodeURIComponent(subject);
+  const b = encodeURIComponent(body);
+  return {
+    mailto: `mailto:${r.to}?${cc?`cc=${encodeURIComponent(cc)}&`:""}subject=${subj}&body=${b}`,
+    owa: `${owaBase}?to=${encodeURIComponent(r.to)}${cc?`&cc=${encodeURIComponent(cc)}`:""}&subject=${subj}&body=${b}`,
+    to: r.to, cc
+  };
+}
 
 /* ---------- state ---------- */
 function loadDraft(){
@@ -147,6 +166,7 @@ function defaultState(){
   const seed = loadPrescreenSeed();
   return {
     first: seed.first||"", last: seed.last||"", ljmuEmail: seed.ljmuEmail||"",
+    study: "",
     days: 7,
     entries: {}
   };
@@ -169,8 +189,19 @@ let step = 0;
 function el(h){const t=document.createElement("template");t.innerHTML=h.trim();return t.content.firstElementChild;}
 function NA(v){ return (v===""||v==null) ? "N/A" : v; }
 function esc0(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+/* ---------- optional backend backup (Google Sheet via Apps Script) ----------
+   Leave SHEET_ENDPOINT blank to disable — the page works exactly the same
+   either way, this is purely an extra copy saved centrally. */
+const SHEET_ENDPOINT = "";
+function postToSheet(payload){
+  if(!SHEET_ENDPOINT) return;
+  try{
+    fetch(SHEET_ENDPOINT, { method:"POST", mode:"no-cors", body: JSON.stringify(payload) });
+  }catch(e){ /* best-effort only — never blocks the email send */ }
+}
 function totalSteps(){ return 2 + Math.max(1, Number(S.days)||7); } // about + N days + results
-function dayEntry(i){ if(!S.entries[i]) S.entries[i]={date:"",bed:"",tryToSleep:"",sol:"",awakenings:"",waso:"",finalWake:"",outOfBed:"",quality:"",comments:""}; return S.entries[i]; }
+function dayEntry(i){ if(!S.entries[i]) S.entries[i]={date:"",bed:"",tryToSleep:"",sol:"",awakenings:"",waso:"",finalWake:"",outOfBed:"",quality:"",comments:"",sent:false}; return S.entries[i]; }
 
 /* ---------- step builders ---------- */
 function buildAbout(){
@@ -191,7 +222,11 @@ function buildAbout(){
       <input type="number" min="1" max="31" step="1" id="days">
       <div style="color:var(--sub);font-size:12.5px;margin-top:6px">7 days is the usual length &mdash; change it if you&rsquo;ve been asked for a different window.</div>
     </div>
+    <div class="field">
+      <label class="ql">Which study are you part of?</label>
+    </div>
   </div>`);
+  c.querySelector(".field:last-child").appendChild(optRow("study", S.study, STUDY_OPTS.map(([v,l])=>[l,v]), v=>{ S.study=v; }));
   c.querySelector("#first").value=S.first; c.querySelector("#last").value=S.last;
   c.querySelector("#ljmuEmail").value=S.ljmuEmail; c.querySelector("#days").value=S.days;
   c.querySelector("#first").oninput=e=>{ S.first=e.target.value; afterAnswer(); };
@@ -258,7 +293,30 @@ function buildDay(i){
   const commentsInput = card.querySelector("#comments");
   commentsInput.value = d.comments; // set as value, never interpolated into markup, to avoid breaking the page
   commentsInput.oninput=e=>{ d.comments=e.target.value; afterAnswer(); };
-  return [card];
+
+  const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
+  const score = scoreDay(d);
+  const subject = `[Sleep] Day ${i+1} of ${n} — ${who}`;
+  const body = buildDaySummaryText(who, i, n, d, score);
+  const links = mailLinks(S.study, subject, body, S.ljmuEmail);
+  const studyColor = S.study==="tt" ? "#2f7a52" : "#c0392b";
+  const sendCard = el(`<div class="card">
+    <h2>Send this day now</h2>
+    <div class="hint">Optional, but safer than waiting until the end of the week &mdash; this sends just today&rsquo;s entry, right away.</div>
+    <a href="${links.mailto}" id="sendDayBtn" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:12px 10px;border-radius:999px;background:${studyColor};border-color:${studyColor};color:#fff">Send Day ${i+1}</a>
+    <a href="${links.owa}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 2px">Didn&rsquo;t work? Send through Outlook Web</a>
+    <div id="sentNote" style="text-align:center;font-size:12.5px;color:var(--good);margin-top:8px;${d.sent?"":"display:none"}">&#10003; Marked as sent on this device</div>
+  </div>`);
+  sendCard.querySelector("#sendDayBtn").addEventListener("click", ()=>{
+    d.sent = true;
+    postToSheet({ type:"sleep_day", submittedAt:new Date().toISOString(), name:who, ljmuEmail:S.ljmuEmail, study:S.study,
+      day:i+1, totalDays:n, date:d.date, bed:d.bed, tryToSleep:d.tryToSleep, sol:d.sol, awakenings:d.awakenings, waso:d.waso,
+      finalWake:d.finalWake, outOfBed:d.outOfBed, quality:qualityLabel(d.quality), comments:d.comments,
+      tibH:score.tibH, tstMin:score.tstMin, sePercent:score.se });
+    afterAnswer();
+    sendCard.querySelector("#sentNote").style.display = "block";
+  });
+  return [card, sendCard];
 }
 
 /* ---------- scoring ---------- */
@@ -302,6 +360,32 @@ function computeAll(){
 /* ---------- results ---------- */
 function qualityLabel(v){ const f=QUALITY_OPTS.find(o=>String(o[1])===String(v)); return f?f[0]:"N/A"; }
 
+function buildDaySummaryText(who, i, n, d, s){
+  const fmtH = v => v==null ? "N/A" : v.toFixed(1)+"h";
+  const fmtPct = v => v==null ? "N/A" : v.toFixed(0)+"%";
+  const lines = [
+    `Hi,`,
+    ``,
+    `Here is my sleep diary entry for Day ${i+1} of ${n}.`,
+    ``,
+    `Name: ${who}`,
+    `Date: ${NA(d.date)}`,
+    `Bed time: ${NA(d.bed)}`,
+    `Tried to sleep: ${NA(d.tryToSleep)}`,
+    `Minutes to fall asleep (SOL): ${NA(d.sol)}`,
+    `Number of awakenings: ${NA(d.awakenings)}`,
+    `Total awakening time (WASO): ${NA(d.waso)} min`,
+    `Final awakening: ${NA(d.finalWake)}`,
+    `Out of bed: ${NA(d.outOfBed)}`,
+    `Sleep quality: ${qualityLabel(d.quality)}`,
+    `Time in bed: ${fmtH(s.tibH)}`,
+    `Total sleep time: ${s.tstMin!=null?fmtH(s.tstMin/60):"N/A"}`,
+    `Sleep efficiency: ${fmtPct(s.se)}`,
+  ];
+  if(d.comments) lines.push(``, `Comments: ${d.comments}`);
+  return lines.join("\n");
+}
+
 function buildResults(){
   const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
   const r = computeAll();
@@ -319,21 +403,17 @@ function buildResults(){
   const daysList = el(`<div class="card"><h2>Day by day</h2><div id="daylist"></div></div>`);
   const dl = daysList.querySelector("#daylist");
   r.rows.forEach(row=>{
-    const badge = row.filled ? `<span class="dayfilled">filled</span>` : `<span class="dayblank">blank</span>`;
+    const badge = row.filled ? `<span class="dayfilled">filled${row.d.sent?" &middot; sent":""}</span>` : `<span class="dayblank">blank</span>`;
     dl.insertAdjacentHTML("beforeend", `<div class="scorecard"><div class="top"><div class="name">Day ${row.i+1}${row.date?` &middot; ${esc0(row.date)}`:""} ${badge}</div><div class="val" style="font-size:14px">${row.filled?qualityLabel(row.d.quality):""}</div></div>${row.filled?`<div class="meta">TIB ${fmtH(row.score.tibH)} &middot; SOL ${fmtMin(row.score.sol)} &middot; WASO ${fmtMin(row.score.waso)} &middot; TST ${row.score.tstMin!=null?fmtH(row.score.tstMin/60):"N/A"} &middot; SE ${fmtPct(row.score.se)}${row.d.comments?` &middot; "${esc0(row.d.comments)}"`:""}</div>`:""}</div>`);
   });
 
-  const JOAO_EMAIL = "spsjagul@ljmu.ac.uk";
-  const LUKE_EMAIL = "L.Towler@2023.ljmu.ac.uk";
   const bodyText = buildSummaryText(who, r);
-  const subject = encodeURIComponent("[Sleep] "+who);
-  const ljmuEmail = S.ljmuEmail.trim();
-  const strengthMailto = `mailto:${JOAO_EMAIL}?${ljmuEmail?`cc=${encodeURIComponent(ljmuEmail)}&`:""}subject=${subject}&body=${encodeURIComponent(bodyText)}`;
-  const ttCC = [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",");
-  const ttMailto = `mailto:${LUKE_EMAIL}?cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(bodyText)}`;
-  const owaBase = "https://outlook.office.com/mail/deeplink/compose";
-  const strengthOWA = `${owaBase}?to=${encodeURIComponent(JOAO_EMAIL)}${ljmuEmail?`&cc=${encodeURIComponent(ljmuEmail)}`:""}&subject=${subject}&body=${encodeURIComponent(bodyText)}`;
-  const ttOWA = `${owaBase}?to=${encodeURIComponent(LUKE_EMAIL)}&cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(bodyText)}`;
+  const subject = `[Sleep] Full week — ${who}`;
+  const links = mailLinks(S.study, subject, bodyText, S.ljmuEmail);
+  const studyColor = S.study==="tt" ? "#2f7a52" : "#c0392b";
+  const recipientNote = S.study==="tt"
+    ? `<strong style="user-select:all">${esc0(LUKE_EMAIL)}</strong> (cc ${esc0(JOAO_EMAIL)})`
+    : `<strong style="user-select:all">${esc0(JOAO_EMAIL)}</strong>`;
 
   const tableCols = ["Name","Day","Date","Bed","Try to sleep","SOL (min)","Awakenings","WASO (min)","Final wake","Out of bed","Quality","TIB","TST","SE","Comments"];
   const tableRows = r.rows.map(row=>{
@@ -349,20 +429,22 @@ function buildResults(){
   const tableTSV = tableCols.join("\t")+"\n"+tableRows.map(row=>row.join("\t")).join("\n");
 
   const copyCard = el(`<div class="card">
-    <h2>Send your diary</h2>
-    <div class="hint">Tap the button for the study you&rsquo;re taking part in &mdash; it opens your default mail app with everything already filled in, including the data table below. Just hit send.</div>
-    <a href="${strengthMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#c0392b;border-color:#c0392b;color:#fff">I am taking part in Strength</a>
-    <a href="${strengthOWA}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 18px">Didn&rsquo;t work? Send through Outlook Web</a>
+    <h2>Send the full week</h2>
+    <div class="hint">Everything already filled in, including the data table below. If you&rsquo;ve been sending each day as you went, this is a tidy recap &mdash; sending it again doesn&rsquo;t cause any harm.</div>
+    <a href="${links.mailto}" id="sendWeekBtn" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:${studyColor};border-color:${studyColor};color:#fff">Send full week</a>
+    <a href="${links.owa}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 14px">Didn&rsquo;t work? Send through Outlook Web</a>
 
-    <a href="${ttMailto}" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#2f7a52;border-color:#2f7a52;color:#fff">I am taking part in Time Trial</a>
-    <a href="${ttOWA}" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 14px">Didn&rsquo;t work? Send through Outlook Web</a>
-
-    <div class="hint" style="margin:4px 0 10px">If nothing opens, copy the table or text below instead and paste it into a new email to <strong style="user-select:all">${esc0(JOAO_EMAIL)}</strong> (Strength) or <strong style="user-select:all">${esc0(LUKE_EMAIL)}</strong> (Time Trial, cc ${esc0(JOAO_EMAIL)}).</div>
+    <div class="hint" style="margin:4px 0 10px">If nothing opens, copy the table or text below instead and paste it into a new email to ${recipientNote}.</div>
     <div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px" id="dataTableWrap"></div>
     <button class="btn-ghost" id="copyTableBtn" style="width:100%;margin-bottom:10px">Copy as table</button>
     <div class="copybox" id="summarybox"></div>
     <button class="btn-ghost" id="copyBtn" style="width:100%">Copy full results text</button>
   </div>`);
+  copyCard.querySelector("#sendWeekBtn").addEventListener("click", ()=>{
+    postToSheet({ type:"sleep_summary", submittedAt:new Date().toISOString(), name:who, ljmuEmail:S.ljmuEmail, study:S.study,
+      daysFilled:r.daysFilled, daysTotal:r.daysTotal, avgTIB:r.avgTIB, avgSOL:r.avgSOL, avgWASO:r.avgWASO, avgTST:r.avgTST, avgSE:r.avgSE,
+      rows: tableRows });
+  });
   copyCard.querySelector("#dataTableWrap").innerHTML = tableHtml;
   copyCard.querySelector("#copyTableBtn").onclick = async ()=>{
     try{
@@ -434,7 +516,7 @@ function buildStep(s){
   return buildDay(s-1);
 }
 function stepValid(){
-  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuEmail.trim()!=="" && Number(S.days)>=1;
+  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuEmail.trim()!=="" && Number(S.days)>=1 && S.study!=="";
   return true; // any day, and the comments-only day, may be left blank per the diary's own instructions
 }
 
