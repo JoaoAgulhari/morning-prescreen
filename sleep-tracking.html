@@ -313,7 +313,7 @@ function buildDay(i){
       "Submitted At": new Date().toISOString(), "Name": who, "LJMU Email": S.ljmuEmail,
       "Day": i+1, "Total Days": n, "Date": d.date, "Bed": d.bed, "Try to sleep": d.tryToSleep,
       "SOL (min)": d.sol, "Awakenings": d.awakenings, "WASO (min)": d.waso, "Final wake": d.finalWake,
-      "Out of bed": d.outOfBed, "Quality": qualityLabel(d.quality), "Comments": d.comments,
+      "Out of bed": d.outOfBed, "Quality (1-5)": (d.quality!==""&&d.quality!=null) ? Number(d.quality) : "", "Comments": d.comments,
       "TIB (h)": score.tibH!=null ? Number(score.tibH.toFixed(2)) : "",
       "TST (h)": score.tstMin!=null ? Number((score.tstMin/60).toFixed(2)) : "",
       "SE (%)": score.se!=null ? Number(score.se.toFixed(0)) : "" });
