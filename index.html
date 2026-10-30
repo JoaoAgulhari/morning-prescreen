@@ -275,7 +275,7 @@ function NA(v){ return (v===""||v==null) ? "N/A" : v; }
 /* ---------- optional backend backup (Google Sheet via Apps Script) ----------
    Leave SHEET_ENDPOINT blank to disable — the page works exactly the same
    either way, this is purely an extra copy saved centrally. */
-const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbyd_HR5krmK9o-fMQD14sBwpub8j8KtaWi7kXA93pK0kshMGraaJsCShNfJnA2mQAOIeQ/exec";
+const SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbwg3d6kHcvPe1eTWrAiFMqbVKub5NFnRrA0TD8KD1rPB4p5W720AYY49v2aMARXZarIiA/exec";
 function postToSheet(payload){
   if(!SHEET_ENDPOINT) return;
   try{
