@@ -687,14 +687,51 @@ function scoreCard(name,val,cat,catClass,meta){
 }
 
 function resultsTable(r, who){
-  const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
-  const tableVals = [who, NA(S.age), NA(S.height), NA(S.mass), r.csm.score, r.lv.score, r.fr.score, NA(S.psqi.bed), NA(S.psqi.wake), NA(S.psqi.hrs), r.caffeine.mg+" mg", r.psqi.global, NA(S.athleticLevel), NA(S.bench1rm), NA(S.squat1rm), NA(S.sleep.years)];
+  const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake (mg)","Caffeine (mg/kg)","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
+  const tableVals = [who, NA(S.age), NA(S.height), NA(S.mass), r.csm.score, r.lv.score, r.fr.score, NA(S.psqi.bed), NA(S.psqi.wake), NA(S.psqi.hrs), r.caffeine.mg, r.caffeine.perKg??"N/A", r.psqi.global, NA(S.athleticLevel), NA(S.bench1rm), NA(S.squat1rm), NA(S.sleep.years)];
   return {tableCols, tableVals};
 }
-function sheetPayloadFor(study, tableCols, tableVals){
+// Everything else that's currently only in the emailed summary text — added to the
+// sheet payload so the sheet becomes the full record, not just the headline columns.
+function fullFieldsFor(r){
+  const sl=S.sleep, lf=S.lifestyle, p=S.psqi;
+  return {
+    "Sex": NA(S.sex),
+    "Gender": NA(S.gender),
+    "Chronotype category": r.csm.category,
+    "Combined classification": r.classification,
+    "Sessions per week": NA(sl.freq),
+    "Session duration (min)": NA(sl.duration),
+    "Preferred training time": NA(sl.preferredTime),
+    "Training schedule": NA(sl.train),
+    "Weekday TIB (h)": r.sleepwake.wdDur!=null ? Number(r.sleepwake.wdDur.toFixed(2)) : "N/A",
+    "Weekend TIB (h)": r.sleepwake.weDur!=null ? Number(r.sleepwake.weDur.toFixed(2)) : "N/A",
+    "Weekday midsleep": r.sleepwake.msw,
+    "Weekend midsleep": r.sleepwake.msf,
+    "Social jet lag (h)": r.sleepwake.sjl!=null ? Number(r.sleepwake.sjl.toFixed(2)) : "N/A",
+    "Shift work": NA(lf.shiftWork),
+    "Smoking": NA(lf.smoking),
+    "Alcohol (units/wk)": NA(lf.alcohol),
+    "Naps": NA(lf.napFreq),
+    "Recent time-zone travel": NA(lf.tzTravel),
+    "Sleep disorder/medication": (lf.sleepDisorder && lf.sleepDisorder.trim()) ? lf.sleepDisorder : "None reported",
+    "Injury/medical flag": (lf.injury && lf.injury.trim()) ? lf.injury : "None reported",
+    "PSQI latency (min)": NA(p.lat),
+    "PSQI c1 quality": r.psqi.c1,
+    "PSQI c2 latency": r.psqi.c2,
+    "PSQI c3 duration": r.psqi.c3,
+    "PSQI c4 efficiency": r.psqi.c4??"N/A",
+    "PSQI efficiency (%)": r.psqi.efficiency!=null ? Number(r.psqi.efficiency.toFixed(0)) : "N/A",
+    "PSQI c5 disturbance": r.psqi.c5,
+    "PSQI c6 medication": r.psqi.c6,
+    "PSQI c7 daytime dysfunction": r.psqi.c7,
+  };
+}
+function sheetPayloadFor(study, tableCols, tableVals, extraFields){
   return Object.assign(
     { type:"prescreen", study, "Submitted At": new Date().toISOString(), "LJMU Email": S.ljmuEmail.trim() },
-    Object.fromEntries(tableCols.map((c,i)=>[c, tableVals[i]]))
+    Object.fromEntries(tableCols.map((c,i)=>[c, tableVals[i]])),
+    extraFields || {}
   );
 }
 
@@ -884,7 +921,7 @@ document.getElementById("nextBtn").onclick=()=>{
       const r = computeResults();
       const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
       const {tableCols, tableVals} = resultsTable(r, who);
-      postToSheet(sheetPayloadFor(S.study, tableCols, tableVals));
+      postToSheet(sheetPayloadFor(S.study, tableCols, tableVals, fullFieldsFor(r)));
     }
     renderStep();
     window.scrollTo({top:0, behavior:"instant"});
