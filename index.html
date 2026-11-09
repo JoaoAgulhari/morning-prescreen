@@ -144,7 +144,7 @@ footer{text-align:center;color:var(--sub);font-size:12px;padding:30px 0 10px}
     <button class="btn-primary" id="nextBtn">Continue</button>
   </div>
   <div class="err" id="incompleteNote" style="text-align:right" hidden>Answer every question on this page to continue.</div>
-  <footer>Answers are scored on this device and shown to you to copy or send on &mdash; nothing is submitted automatically.</footer>
+  <footer>Your answers are scored on this device. Once you reach your results page, your scores are saved to our research records automatically &mdash; you can then also email them to the team.</footer>
 </div>
 <div class="toast" id="toast">Copied</div>
 
@@ -248,7 +248,7 @@ function saveDraft(){
 }
 const DEFAULT_STATE = {
   testMode:false,
-  first:"", last:"", ljmuEmail:"", mass:"", height:"", bench1rm:"", squat1rm:"", athleticLevel:"", age:"", sex:"", gender:"",
+  first:"", last:"", ljmuEmail:"", study:"", mass:"", height:"", bench1rm:"", squat1rm:"", athleticLevel:"", age:"", sex:"", gender:"",
   csm:{}, lv:{}, caff:{servings:{}, other:"", }, sleep:{wdBed:"",wdWake:"",weBed:"",weWake:"",train:"",years:"",freq:"",duration:"",preferredTime:""},
   lifestyle:{shiftWork:"",smoking:"",alcohol:"",sleepDisorder:"",tzTravel:"",napFreq:"",injury:""},
   psqi:{bed:"",lat:"",wake:"",hrs:"",d5:{},d5other:"",qual:"",med:"",q8:"",q9:""}
@@ -297,6 +297,10 @@ function buildAbout(){
       <input type="email" id="ljmuEmail" placeholder="e.g. SPSJSMITH@ljmu.ac.uk" autocapitalize="none" autocorrect="off">
       <div style="color:var(--sub);font-size:12.5px;margin-top:6px">Your results email will be cc’d to this address.</div>
     </div>
+    <div class="field">
+      <label class="ql">Which study are you taking part in?</label>
+      <select id="study"><option value="">Select…</option><option value="strength">Strength</option><option value="tt">Time Trial</option></select>
+    </div>
     <div class="field row2">
       <div><label class="ql">Age</label><input type="number" min="0" step="1" id="age"></div>
       <div><label class="ql">Sex <span style="color:var(--sub);font-weight:400">(biological)</span></label>
@@ -321,12 +325,14 @@ function buildAbout(){
   </div>`);
   c.querySelector("#first").value=S.first; c.querySelector("#last").value=S.last; c.querySelector("#mass").value=S.mass;
   c.querySelector("#ljmuEmail").value=S.ljmuEmail;
+  c.querySelector("#study").value=S.study;
   c.querySelector("#bench1rm").value=S.bench1rm; c.querySelector("#squat1rm").value=S.squat1rm;
   c.querySelector("#age").value=S.age; c.querySelector("#sex").value=S.sex; c.querySelector("#gender").value=S.gender;
   c.querySelector("#height").value=S.height;
   c.querySelector("#first").oninput=e=>{ S.first=e.target.value; afterAnswer(); };
   c.querySelector("#last").oninput=e=>{ S.last=e.target.value; afterAnswer(); };
   c.querySelector("#ljmuEmail").oninput=e=>{ S.ljmuEmail=e.target.value; afterAnswer(); };
+  c.querySelector("#study").oninput=e=>{ S.study=e.target.value; afterAnswer(); };
   c.querySelector("#age").oninput=e=>{ S.age=e.target.value; afterAnswer(); };
   c.querySelector("#sex").oninput=e=>{ S.sex=e.target.value; afterAnswer(); };
   c.querySelector("#gender").oninput=e=>{ S.gender=e.target.value; afterAnswer(); };
@@ -680,12 +686,24 @@ function scoreCard(name,val,cat,catClass,meta){
   </div>`;
 }
 
+function resultsTable(r, who){
+  const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
+  const tableVals = [who, NA(S.age), NA(S.height), NA(S.mass), r.csm.score, r.lv.score, r.fr.score, NA(S.psqi.bed), NA(S.psqi.wake), NA(S.psqi.hrs), r.caffeine.mg+" mg", r.psqi.global, NA(S.athleticLevel), NA(S.bench1rm), NA(S.squat1rm), NA(S.sleep.years)];
+  return {tableCols, tableVals};
+}
+function sheetPayloadFor(study, tableCols, tableVals){
+  return Object.assign(
+    { type:"prescreen", study, "Submitted At": new Date().toISOString(), "LJMU Email": S.ljmuEmail.trim() },
+    Object.fromEntries(tableCols.map((c,i)=>[c, tableVals[i]]))
+  );
+}
+
 function buildResults(){
   const r = computeResults();
   const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
   const catClassCSM = r.csm.category.startsWith("Morning")?"cat-morning":(r.csm.category.startsWith("Evening")?"cat-evening":"cat-mid");
 
-  const wrap = el(`<div class="card"><h2>Results for ${who}</h2><div class="hint">Calculated from your answers above. Nothing has been sent anywhere — copy the summary below to send on.</div><div id="rescards"></div></div>`);
+  const wrap = el(`<div class="card"><h2>Results for ${who}</h2><div class="hint">Calculated from your answers above — already saved to our records as soon as you reached this page. Use the button below to also email them to the team.</div><div id="rescards"></div></div>`);
   const rc = wrap.querySelector("#rescards");
   if(S.lifestyle.injury && S.lifestyle.injury.trim()){
     rc.insertAdjacentHTML("beforeend", scoreCard("Safety screening", "Flagged", "Needs clearance before maximal testing", "cat-warn", `Reported: “${S.lifestyle.injury}” — please review before any 1RM or time-trial test.`));
@@ -703,49 +721,38 @@ function buildResults(){
 
   const JOAO_EMAIL = "spsjagul@ljmu.ac.uk";
   const LUKE_EMAIL = "L.Towler@2023.ljmu.ac.uk";
-  const strengthText = buildSummaryText(who, r, "Joao");
-  const ttText = buildSummaryText(who, r, "Luke");
+  const isTT = S.study === "tt";
+  const studyLabel = isTT ? "Time Trial" : "Strength";
+  const studyColor = isTT ? "#2f7a52" : "#c0392b";
+  const recipient = isTT ? LUKE_EMAIL : JOAO_EMAIL;
+  const summaryText = buildSummaryText(who, r, isTT ? "Luke" : "Joao");
   const subject = encodeURIComponent("[Prescreening] "+who);
   const ljmuEmail = S.ljmuEmail.trim();
-  const strengthMailto = `mailto:${JOAO_EMAIL}?${ljmuEmail?`cc=${encodeURIComponent(ljmuEmail)}&`:""}subject=${subject}&body=${encodeURIComponent(strengthText)}`;
-  const ttCC = [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",");
-  const ttMailto = `mailto:${LUKE_EMAIL}?cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
+  const cc = isTT ? [JOAO_EMAIL, ljmuEmail].filter(Boolean).join(",") : ljmuEmail;
+  const mailto = `mailto:${recipient}?${cc?`cc=${encodeURIComponent(cc)}&`:""}subject=${subject}&body=${encodeURIComponent(summaryText)}`;
   const owaBase = "https://outlook.office.com/mail/deeplink/compose";
-  const strengthOWA = `${owaBase}?to=${encodeURIComponent(JOAO_EMAIL)}${ljmuEmail?`&cc=${encodeURIComponent(ljmuEmail)}`:""}&subject=${subject}&body=${encodeURIComponent(strengthText)}`;
-  const ttOWA = `${owaBase}?to=${encodeURIComponent(LUKE_EMAIL)}&cc=${encodeURIComponent(ttCC)}&subject=${subject}&body=${encodeURIComponent(ttText)}`;
+  const owa = `${owaBase}?to=${encodeURIComponent(recipient)}${cc?`&cc=${encodeURIComponent(cc)}`:""}&subject=${subject}&body=${encodeURIComponent(summaryText)}`;
   const esc0 = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const tableCols = ["Name","Age (yrs)","Height (cm)","Mass (kg)","Circadian score","L/V","F/R","Time asleep","Time awake","Hours slept habitually","Caffeine intake","Pittsburgh","Athletic Level","1RM BP","1RM BS","Training experience (yrs)"];
-  const tableVals = [who, NA(S.age), NA(S.height), NA(S.mass), r.csm.score, r.lv.score, r.fr.score, NA(S.psqi.bed), NA(S.psqi.wake), NA(S.psqi.hrs), r.caffeine.mg+" mg", r.psqi.global, NA(S.athleticLevel), NA(S.bench1rm), NA(S.squat1rm), NA(S.sleep.years)];
+  const {tableCols, tableVals} = resultsTable(r, who);
   const tableHtml = `<table style="border-collapse:collapse;width:100%;font-size:11.5px">
     <tr>${tableCols.map(c=>`<th style="border:1px solid #999;padding:5px 7px;text-align:left;white-space:nowrap">${esc0(c)}</th>`).join("")}</tr>
     <tr>${tableVals.map(v=>`<td style="border:1px solid #999;padding:5px 7px;white-space:nowrap">${esc0(v)}</td>`).join("")}</tr>
   </table>`;
   const tableTSV = tableCols.join("\t")+"\n"+tableVals.join("\t");
-  const sheetPayload = (study)=>Object.assign(
-    { type:"prescreen", study, "Submitted At": new Date().toISOString(), "LJMU Email": ljmuEmail },
-    Object.fromEntries(tableCols.map((c,i)=>[c, tableVals[i]]))
-  );
 
   const copyCard = el(`<div class="card">
-    <h2>Send your results</h2>
-    <div class="hint">Tap the button for the study you’re taking part in — it opens your default mail app with everything already filled in, including the data table below. Just hit send.</div>
-    <a href="${strengthMailto}" id="sendStrength" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#c0392b;border-color:#c0392b;color:#fff">I am taking part in Strength</a>
-    <a href="${strengthOWA}" id="strengthOWA" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 18px">Didn’t work? Send through Outlook Web</a>
+    <h2>Email your results</h2>
+    <div class="hint">You’re registered for <strong>${studyLabel}</strong>. Tap below to open your default mail app with everything already filled in, including the data table below.</div>
+    <a href="${mailto}" id="sendResults" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:${studyColor};border-color:${studyColor};color:#fff">Send my results (${studyLabel})</a>
+    <a href="${owa}" id="resultsOWA" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 18px">Didn’t work? Send through Outlook Web</a>
 
-    <a href="${ttMailto}" id="sendTT" class="btn-primary" style="display:block;text-align:center;text-decoration:none;font-size:15px;padding:13px 10px;border-radius:999px;background:#2f7a52;border-color:#2f7a52;color:#fff">I am taking part in Time Trial</a>
-    <a href="${ttOWA}" id="ttOWA" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:12px;color:var(--sub);margin:6px 0 14px">Didn’t work? Send through Outlook Web</a>
-
-    <div class="hint" style="margin:4px 0 10px">Pick the study you’re taking part in — it opens your default mail app with everything already filled in, including a cc to ${esc0(ljmuEmail||"your LJMU email")}, ready to send. If nothing opens, copy the table or text below instead and paste it into a new email to <strong style="user-select:all">${JOAO_EMAIL}</strong> (Strength) or <strong style="user-select:all">${LUKE_EMAIL}</strong> (Time Trial, cc ${JOAO_EMAIL}${ljmuEmail?" and "+esc0(ljmuEmail):""}).</div>
+    <div class="hint" style="margin:4px 0 10px">If nothing opens, copy the table or text below instead and paste it into a new email to <strong style="user-select:all">${recipient}</strong>${cc?` (cc ${esc0(cc)})`:""}.</div>
     <div style="overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:10px" id="dataTableWrap"></div>
     <button class="btn-ghost" id="copyTableBtn" style="width:100%;margin-bottom:10px">Copy as table</button>
     <div class="copybox" id="summarybox"></div>
     <button class="btn-ghost" id="copyBtn" style="width:100%">Copy full results text</button>
   </div>`);
   copyCard.querySelector("#dataTableWrap").innerHTML = tableHtml;
-  copyCard.querySelector("#sendStrength").addEventListener("click", ()=>postToSheet(sheetPayload("strength")));
-  copyCard.querySelector("#sendTT").addEventListener("click", ()=>postToSheet(sheetPayload("tt")));
-  copyCard.querySelector("#strengthOWA").addEventListener("click", ()=>postToSheet(sheetPayload("strength")));
-  copyCard.querySelector("#ttOWA").addEventListener("click", ()=>postToSheet(sheetPayload("tt")));
   copyCard.querySelector("#copyTableBtn").onclick = async ()=>{
     try{
       if(window.ClipboardItem){
@@ -767,9 +774,9 @@ function buildResults(){
       }
     }
   };
-  copyCard.querySelector("#summarybox").textContent = strengthText;
+  copyCard.querySelector("#summarybox").textContent = summaryText;
   copyCard.querySelector("#copyBtn").onclick = async ()=>{
-    try{ await navigator.clipboard.writeText(strengthText); showToast("Copied"); }
+    try{ await navigator.clipboard.writeText(summaryText); showToast("Copied"); }
     catch(e){
       const range=document.createRange(); range.selectNodeContents(copyCard.querySelector("#summarybox"));
       const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
@@ -830,7 +837,7 @@ const STEP_NAMES = ["About you","Athletic level","Chronotype","Flexibility & vig
 const STEP_BUILDERS = [buildAbout, buildAthleticLevel, buildCSM, buildLV, buildCaffeine, buildLifestyle, buildSleepWake, buildPSQI, buildResults];
 
 function stepValid(){
-  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuEmail.trim()!=="" && S.age!=="" && S.sex!=="" && S.gender!=="" && S.height!=="" && S.mass!==""; // 1RM stays optional
+  if(step===0) return S.first.trim()!=="" && S.last.trim()!=="" && S.ljmuEmail.trim()!=="" && S.study!=="" && S.age!=="" && S.sex!=="" && S.gender!=="" && S.height!=="" && S.mass!==""; // 1RM stays optional
   if(step===1) return true;
   if(step===2) return CSM.every((_,i)=>S.csm[i]!=null);
   if(step===3) return LV.every((_,i)=>S.lv[i]!=null);
@@ -868,7 +875,21 @@ function renderStep(){
 }
 
 document.getElementById("backBtn").onclick=()=>{ if(step>0){ step--; renderStep(); window.scrollTo({top:0, behavior:"instant"}); } };
-document.getElementById("nextBtn").onclick=()=>{ if(stepValid() && step<TOTAL_STEPS-1){ step++; renderStep(); window.scrollTo({top:0, behavior:"instant"}); } };
+document.getElementById("nextBtn").onclick=()=>{
+  if(stepValid() && step<TOTAL_STEPS-1){
+    const enteringResults = step===TOTAL_STEPS-2;
+    step++;
+    if(enteringResults){
+      // Save to the sheet the moment results are reached — no extra click needed.
+      const r = computeResults();
+      const who = [S.first,S.last].filter(Boolean).join(" ") || "Participant";
+      const {tableCols, tableVals} = resultsTable(r, who);
+      postToSheet(sheetPayloadFor(S.study, tableCols, tableVals));
+    }
+    renderStep();
+    window.scrollTo({top:0, behavior:"instant"});
+  }
+};
 
 renderStep();
 </script>
